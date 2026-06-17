@@ -1,0 +1,39 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · Allston forecast (static)</title>
+<style>
+ :root{--teal:#00695C;--line:#e6ebe9;--muted:#667085;--bg:#f6faf9}
+ *{box-sizing:border-box} body{margin:0;font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c;background:var(--bg)}
+ header{display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--teal);color:#fff}
+ header b{font-size:16px} .pill{font-size:12px;background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px}
+ .wrap{max-width:860px;margin:0 auto;padding:20px}
+ .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px}
+ h2{font-size:16px;margin:0 0 4px;color:var(--teal)} .sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+ table{width:100%;border-collapse:collapse;font-size:13px} th,td{padding:7px 9px;text-align:right;border-top:1px solid var(--line)}
+ th:first-child,td:first-child{text-align:left} thead th{border:0;color:var(--muted);font-weight:500}
+ .hl{background:#e7f4ed;color:#1b7a4b} .hint{font-size:12px;color:var(--muted);line-height:1.6}
+</style></head><body>
+<header><b>transit4</b><span class=pill>Allston forecast · static</span></header>
+<div class=wrap><div class=card>
+ <h2>Allston development — forecast comparison</h2>
+ <div class=sub id=sub>Cached results — no engine or server needed.</div>
+ <div id=tableWrap style="overflow-x:auto"></div>
+ <div class=hint id=takeaway style="margin-top:12px"></div>
+ <div class=hint id=foot style="margin-top:10px"></div>
+</div></div>
+<script>
+const M=[['transit_pct','Transit share %'],['total_trips','Total trips'],['transit_trips','Transit trips'],
+ ['avg_trip_mi','Avg trip mi'],['jobs_within_45min_transit','Jobs reachable transit 45min'],
+ ['transit_job_access_percapita','Transit job access / capita']];
+const fmt=(k,v)=>v==null?'—':(k==='transit_pct'||k==='avg_trip_mi')?v:Math.round(v).toLocaleString();
+fetch('results_data.json').then(r=>r.json()).then(d=>{
+ const S=d.scenarios;
+ let h='<table><thead><tr><th>metric</th>'+S.map(s=>`<th${s.allston?' class=hl':''}>${s.label}</th>`).join('')+'</tr></thead><tbody>';
+ for(const [k,lbl] of M){ h+=`<tr><td>${lbl}</td>`+S.map(s=>`<td${s.allston?' class=hl':''}>${fmt(k,s.summary?.[k])}</td>`).join('')+'</tr>'; }
+ h+='</tbody></table>'; document.getElementById('tableWrap').innerHTML=h;
+ const c=S.find(s=>s.label==='2040 control')?.summary, a=S.find(s=>s.allston)?.summary;
+ if(c&&a){ const pc=k=>((a[k]-c[k])/c[k]*100);
+  document.getElementById('takeaway').innerHTML=`<b style="color:var(--teal)">Allston development vs 2040 control:</b> jobs reachable by transit ${pc('jobs_within_45min_transit')>=0?'+':''}${pc('jobs_within_45min_transit').toFixed(1)}%, transit trips ${pc('transit_trips')>=0?'+':''}${pc('transit_trips').toFixed(1)}%, share ${(a.transit_pct-c.transit_pct>=0?'+':'')+(a.transit_pct-c.transit_pct).toFixed(1)}pp. ${d.geofence}.`; }
+ document.getElementById('foot').textContent=`Calibrated Boston model (sources NHTS/ACS/NTD). Relative differences are the signal; absolutes omit congestion/fares/non-work. Snapshot ${(S[0]?.created||'').slice(0,10)} · data ${S[0]?.vintage||''}.`;
+}).catch(e=>{document.getElementById('tableWrap').textContent='results_data.json not found';});
+</script></body></html>

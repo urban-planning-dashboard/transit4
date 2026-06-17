@@ -1,0 +1,91 @@
+{
+  "region": "Boston metro (MBTA)",
+  "scenarios": [
+    {
+      "label": "2019 baseline",
+      "year": 2019,
+      "allston": false,
+      "summary": {
+        "year": 2019,
+        "beta": 0.045,
+        "transit_calib": 1.0,
+        "n_zones": 1669,
+        "total_trips": 1700451.0,
+        "transit_trips": 290503.0,
+        "transit_share": 0.1708,
+        "transit_pct": 17.1,
+        "avg_trip_mi": 10.67,
+        "avg_transit_trip_mi": 8.79,
+        "transit_job_access_percapita": 224306.1,
+        "jobs_within_45min_transit": 885313.0
+      },
+      "created": "2026-06-17T16:09:34.005",
+      "vintage": "2019@2026-06-14"
+    },
+    {
+      "label": "2026 current",
+      "year": 2026,
+      "allston": false,
+      "summary": {
+        "year": 2026,
+        "beta": 0.045,
+        "transit_calib": 1.0,
+        "n_zones": 1669,
+        "total_trips": 1718922.0,
+        "transit_trips": 297132.0,
+        "transit_share": 0.1729,
+        "transit_pct": 17.3,
+        "avg_trip_mi": 10.59,
+        "avg_transit_trip_mi": 8.73,
+        "transit_job_access_percapita": 231989.8,
+        "jobs_within_45min_transit": 912844.0
+      },
+      "created": "2026-06-17T16:09:34.927",
+      "vintage": "2019@2026-06-14"
+    },
+    {
+      "label": "2040 control",
+      "year": 2040,
+      "allston": false,
+      "summary": {
+        "year": 2040,
+        "beta": 0.045,
+        "transit_calib": 1.0,
+        "n_zones": 1669,
+        "total_trips": 1755864.0,
+        "transit_trips": 310392.0,
+        "transit_share": 0.1768,
+        "transit_pct": 17.7,
+        "avg_trip_mi": 10.44,
+        "avg_transit_trip_mi": 8.61,
+        "transit_job_access_percapita": 247536.7,
+        "jobs_within_45min_transit": 968643.0
+      },
+      "created": "2026-06-17T16:09:35.908",
+      "vintage": "2019@2026-06-14"
+    },
+    {
+      "label": "2040 + Allston dev",
+      "year": 2040,
+      "allston": true,
+      "summary": {
+        "year": 2040,
+        "beta": 0.045,
+        "transit_calib": 1.0,
+        "n_zones": 1669,
+        "total_trips": 1791194.0,
+        "transit_trips": 321302.0,
+        "transit_share": 0.1794,
+        "transit_pct": 17.9,
+        "avg_trip_mi": 10.32,
+        "avg_transit_trip_mi": 8.49,
+        "transit_job_access_percapita": 258325.7,
+        "jobs_within_45min_transit": 1007521.0
+      },
+      "created": "2026-06-17T16:09:36.964",
+      "vintage": "2019@2026-06-14"
+    }
+  ],
+  "note": "Static snapshot of cached forecast runs \u2014 viewable with no engine/server.",
+  "geofence": "Allston: Harvard ERC + Beacon Park Yard (jobs+homes x1.75), served by West Station"
+}

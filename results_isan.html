@@ -1,0 +1,101 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · Allston forecast (isan login)</title>
+<style>
+ :root{--teal:#00695C;--line:#e6ebe9;--muted:#667085;--bg:#f6faf9}
+ *{box-sizing:border-box} body{margin:0;font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c;background:var(--bg)}
+ header{display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--teal);color:#fff}
+ header b{font-size:16px} .pill{font-size:12px;background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px}
+ .wrap{max-width:860px;margin:0 auto;padding:20px}
+ .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}
+ h2{font-size:16px;margin:0 0 4px;color:var(--teal)} .sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+ label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+ input{width:100%;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px}
+ button{font:inherit;background:var(--teal);color:#fff;border:0;border-radius:8px;padding:9px 16px;cursor:pointer}
+ table{width:100%;border-collapse:collapse;font-size:13px} th,td{padding:7px 9px;text-align:right;border-top:1px solid var(--line)}
+ th:first-child,td:first-child{text-align:left} thead th{border:0;color:var(--muted);font-weight:500}
+ .hl{background:#e7f4ed;color:#1b7a4b} .hint{font-size:12px;color:var(--muted);line-height:1.6}
+ .warn{font-size:12px;background:#fbf1de;color:#b06a00;border-radius:8px;padding:8px 10px;line-height:1.5}
+ .hide{display:none}
+</style></head><body>
+<header><b>transit4</b><span class=pill>Allston forecast</span><span style=flex:1></span><span id=who class=pill style=display:none></span></header>
+<div class=wrap>
+
+ <div class=card id=loginCard>
+  <h2>Sign in with your isan account</h2>
+  <div class=sub>This page reuses your existing isan login — same email + password, verified by isan's backend. No separate account.</div>
+  <div id=cfgWarn class="warn hide"></div>
+  <label>Email</label><input id=email placeholder="you@example.com">
+  <label>Password</label><input id=pass type=password>
+  <div style="margin-top:12px"><button id=loginBtn>Sign in</button> <span class=hint id=loginMsg></span></div>
+ </div>
+
+ <div class="card hide" id=main>
+  <h2>Allston development — forecast comparison</h2>
+  <div class=sub>Cached results. Control = the regional 2040 projection; Allston = + Harvard ERC / Beacon Park Yard (jobs+homes ×1.75), served by West Station.</div>
+  <div id=tableWrap style="overflow-x:auto"></div>
+  <div class=hint id=takeaway style="margin-top:12px"></div>
+  <div class=hint id=foot style="margin-top:10px"></div>
+ </div>
+</div>
+<script>
+// ── CONFIG — set this to isan's PocketBase URL once its backend is hosted ───
+// (e.g. "https://api.isa-kit.app"). Empty = isan backend not wired yet → the
+// page falls back to showing the cached results without real verification.
+const ISAN_PB_URL = new URLSearchParams(location.search).get('pb') || "";   // ?pb= or set default after isan's backend deploy
+// ─────────────────────────────────────────────────────────────────────────
+const $=id=>document.getElementById(id);
+const TOKKEY='isan_pb_token';
+const M=[['transit_pct','Transit share %'],['total_trips','Total trips'],['transit_trips','Transit trips'],
+ ['avg_trip_mi','Avg trip mi'],['jobs_within_45min_transit','Jobs reachable transit 45min'],
+ ['transit_job_access_percapita','Transit job access / capita']];
+const fmt=(k,v)=>v==null?'—':(k==='transit_pct'||k==='avg_trip_mi')?v:Math.round(v).toLocaleString();
+
+async function isanLogin(email,pass){           // PocketBase auth-with-password (same as the isan app)
+  const r=await fetch(ISAN_PB_URL+'/api/collections/users/auth-with-password',
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identity:email,password:pass})});
+  if(r.status>=400) throw new Error((await r.json().catch(()=>({}))).message||'login failed');
+  const j=await r.json(); localStorage.setItem(TOKKEY,j.token); return j;
+}
+async function isanRefresh(){                    // validate a stored isan token on load
+  const t=localStorage.getItem(TOKKEY); if(!t) return false;
+  const r=await fetch(ISAN_PB_URL+'/api/collections/users/auth-refresh',
+    {method:'POST',headers:{'Authorization':'Bearer '+t}});
+  if(r.status>=400){ localStorage.removeItem(TOKKEY); return false; }
+  const j=await r.json(); localStorage.setItem(TOKKEY,j.token); return j.record?.email||true;
+}
+// gated data: from the server (PocketBase 'forecasts' collection, needs the token)
+// when isan's backend is wired; static fallback only when no backend is set.
+async function loadScenarios(){
+  if(ISAN_PB_URL){
+    const t=localStorage.getItem(TOKKEY);
+    const r=await fetch(ISAN_PB_URL+'/api/collections/forecasts/records?perPage=50',{headers:{'Authorization':'Bearer '+t}});
+    if(r.status>=400) throw new Error('server refused the data (HTTP '+r.status+') — sign in required');
+    return (await r.json()).items.map(it=>({label:it.label,allston:it.allston,summary:it.summary,vintage:it.vintage}));
+  }
+  return (await (await fetch('results_data.json')).json()).scenarios;   // demo fallback only
+}
+async function showResults(email){
+  $('loginCard').classList.add('hide'); $('main').classList.remove('hide');
+  if(email&&email!==true){ $('who').textContent=email; $('who').style.display=''; }
+  try{
+   const S=await loadScenarios();
+   let h='<table><thead><tr><th>metric</th>'+S.map(s=>`<th${s.allston?' class=hl':''}>${s.label}</th>`).join('')+'</tr></thead><tbody>';
+   for(const [k,lbl] of M){ h+=`<tr><td>${lbl}</td>`+S.map(s=>`<td${s.allston?' class=hl':''}>${fmt(k,s.summary?.[k])}</td>`).join('')+'</tr>'; }
+   $('tableWrap').innerHTML=h+'</tbody></table>';
+   const c=S.find(s=>s.label==='2040 control')?.summary,a=S.find(s=>s.allston)?.summary;
+   if(c&&a){const pc=k=>((a[k]-c[k])/c[k]*100); $('takeaway').innerHTML=`<b style="color:var(--teal)">Allston vs 2040 control:</b> jobs reachable by transit ${pc('jobs_within_45min_transit')>=0?'+':''}${pc('jobs_within_45min_transit').toFixed(1)}%, transit trips ${pc('transit_trips')>=0?'+':''}${pc('transit_trips').toFixed(1)}%, share ${(a.transit_pct-c.transit_pct>=0?'+':'')+(a.transit_pct-c.transit_pct).toFixed(1)}pp.`;}
+   $('foot').textContent=`${ISAN_PB_URL?'Served from the gated forecasts collection. ':''}Calibrated Boston model (NHTS/ACS/NTD). Relative differences are the signal. Data ${S[0]?.vintage||''}.`;
+  }catch(e){ $('tableWrap').textContent=e.message; }
+}
+$('loginBtn').onclick=async()=>{
+  if(!ISAN_PB_URL){ showResults(); return; }     // backend not wired yet → demo view
+  $('loginBtn').disabled=true; $('loginMsg').textContent='signing in…';
+  try{ const j=await isanLogin($('email').value,$('pass').value); showResults(j.record?.email); }
+  catch(e){ $('loginMsg').textContent=e.message; } finally{ $('loginBtn').disabled=false; }
+};
+(async()=>{
+  if(!ISAN_PB_URL){ $('cfgWarn').classList.remove('hide'); $('cfgWarn').textContent='isan backend URL not set yet — set ISAN_PB_URL after isan is hosted to require a real isan login. For now this shows the cached results.'; return; }
+  const who=await isanRefresh(); if(who) showResults(who);   // already-signed-in isan session
+})();
+</script></body></html>

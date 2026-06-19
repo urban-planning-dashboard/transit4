@@ -9,6 +9,7 @@
  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px}
  h1{font-size:20px;margin:0 0 6px;color:var(--teal)} p{color:var(--muted);line-height:1.6}
  a.btn{display:inline-block;margin-top:14px;background:var(--teal);color:#fff;text-decoration:none;padding:11px 18px;border-radius:9px;font-weight:600}
+ a.alt{display:inline-block;margin-top:10px;margin-left:10px;color:var(--teal);text-decoration:none;font-weight:600;font-size:13px}
  .small{font-size:12px;color:var(--muted);margin-top:16px}
 </style></head><body>
 <header>Transit4</header>
@@ -16,10 +17,12 @@
  <h1>Allston development — transit forecast</h1>
  <p>Four-step travel-demand forecasts for Boston (2019 → 2040), comparing the regional
  projection against an Allston intensification scenario (Harvard ERC + Beacon Park Yard,
- served by West Station). Calibrated to NHTS / ACS / NTD.</p>
- <a class=btn href="https://167.233.64.97/t4/dashboard.html">Open dashboard — sign in →</a>
- <p class=small>Opens the dashboard on the secure server. Sign in with your isan account
- (same email + password). Tabs: forecasts, agent explorer (filters + distributions),
- cross-filter scatter, fiscal map.</p>
+ served by West Station). Anchored to US Census (LODES jobs/workers + decennial households,
+ CTPS zones) and calibrated to NHTS / ACS / NTD.</p>
+ <a class=btn href="dashboard.html">Open dashboard →</a>
+ <a class=alt href="https://167.233.64.97/t4/dashboard.html">Sign-in version (live) →</a>
+ <p class=small>The dashboard opens directly — no account needed. Tabs: forecasts, agent explorer
+ (filters + distributions), cross-filter scatter, fiscal map, optimizer. The “sign-in version”
+ reads live data from the server with your isan account.</p>
 </div></div>
 </body></html>

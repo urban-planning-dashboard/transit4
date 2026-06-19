@@ -1,0 +1,84 @@
+{
+  "region": "Boston metro (MBTA service area)",
+  "mode": "focused",
+  "calibrated": true,
+  "metric": "mean work-trip length",
+  "beta": 0.0545,
+  "predicted_mi": 11.0,
+  "target_mi": 11.0,
+  "residual_pct": -0.0,
+  "within_tolerance": true,
+  "tolerance_pct": 10,
+  "n_zones": 76,
+  "vintage": "2026-06",
+  "mode_choice": {
+    "predicted_share_pct": 16.3,
+    "target_share_pct": 16.3,
+    "residual_pp": 0.0,
+    "within_tolerance": true,
+    "spatial_r2": 0.92,
+    "holdout_rmse_pp": 3.29,
+    "fit": "local per-town ACS"
+  },
+  "validation": [
+    {
+      "metric": "mean work-trip distance (mi)",
+      "kind": "calibrated",
+      "observed": 11.0,
+      "predicted": 11.0,
+      "residual": "-0.0%",
+      "ok": true,
+      "source": "NHTS 2017 national average commute distance (FHWA Summary of Travel Trends 2017)",
+      "vintage": "2017"
+    },
+    {
+      "metric": "transit mode share, aggregate (%)",
+      "kind": "calibrated",
+      "observed": 16.3,
+      "predicted": 16.3,
+      "residual": "+0.0pp",
+      "ok": true,
+      "source": "ACS B08301 means of transportation to work, hh-weighted over the modeled zones (Boston proper ~34.5%; suburbs lower)",
+      "vintage": "ACS 2019 5-yr"
+    },
+    {
+      "metric": "town-level transit share, 76 towns (OUT-OF-SAMPLE)",
+      "kind": "validation",
+      "observed": "R\u00b2=0.92",
+      "predicted": "held-out RMSE 3.3pp",
+      "residual": "fit to local ACS, validated on towns the fit never saw",
+      "ok": true,
+      "source": "ACS B08301 means of transportation to work, hh-weighted over the modeled zones (Boston proper ~34.5%; suburbs lower)",
+      "vintage": "ACS 2019 5-yr"
+    },
+    {
+      "metric": "annual transit boardings (M)",
+      "kind": "cross-check",
+      "observed": 270.7,
+      "predicted": 102.7,
+      "residual": "work\u224838% of all boardings",
+      "ok": true,
+      "source": "MBTA system-wide unlinked passenger trips ~270.7M/yr (NTD / MBTA). CONTEXT only \u2014 all-purpose boardings incl. transfers, not the modeled work-trip total",
+      "vintage": "2024-25"
+    },
+    {
+      "metric": "mean commute time (min)",
+      "kind": "reference",
+      "observed": 31.4,
+      "predicted": null,
+      "residual": "model is distance-based",
+      "ok": null,
+      "source": "ACS B08303 mean travel time to work \u2014 Boston 31.4 min / Suffolk County 31.9 min (US Census)",
+      "vintage": "ACS 2019 5-yr"
+    }
+  ],
+  "sources": [
+    "NHTS 2017 national average commute distance (FHWA Summary of Travel Trends 2017)",
+    "ACS B08301 means of transportation to work, hh-weighted over the modeled zones (Boston proper ~34.5%; suburbs lower)",
+    "MBTA system-wide unlinked passenger trips ~270.7M/yr (NTD / MBTA). CONTEXT only \u2014 all-purpose boardings incl. transfers, not the modeled work-trip total"
+  ],
+  "uncalibrated": [
+    "congestion, fares, reliability, induced demand",
+    "non-work trips, time-of-day"
+  ]
+}

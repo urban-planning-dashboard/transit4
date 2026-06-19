@@ -1,0 +1,55 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · optimizer</title>
+<style>
+ :root{--teal:#00695C;--line:#e6ebe9;--muted:#667085;--bg:#f6faf9}
+ *{box-sizing:border-box} body{margin:0;font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c;background:var(--bg)}
+ .wrap{max-width:720px;margin:0 auto;padding:18px}
+ h2{font-size:16px;margin:0 0 4px;color:var(--teal)} .sub{color:var(--muted);font-size:12px;margin-bottom:12px;line-height:1.5}
+ .tabs{display:flex;gap:6px;margin:10px 0}
+ .tabs button{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:#456;border-radius:8px;padding:7px 12px;cursor:pointer}
+ .tabs button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+ .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}
+ .badge{font-size:12px;background:#e7f4ed;color:#1b7a4b;border-radius:12px;padding:3px 10px;font-weight:600}
+ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px} td,th{padding:7px 9px;border-top:1px solid var(--line);text-align:right} td:nth-child(2),th:nth-child(2){text-align:left}
+ thead th{border:0;color:var(--muted);font-weight:500} .rank{color:var(--teal);font-weight:600}
+ .bar{height:7px;background:#e7f4ed;border-radius:4px;overflow:hidden} .bar>div{height:7px;background:var(--teal)}
+ .hint{font-size:12px;color:var(--muted);line-height:1.6;margin-top:12px}
+</style></head><body>
+<div class=wrap>
+ <h2>Where should transit go?</h2>
+ <div class=sub>The optimizer searches transit investments and ranks them by the goal you pick — so the recommendation changes with the objective. Greedy search on the calibrated 2040 model.</div>
+ <div class=tabs id=tabs></div>
+ <div class=card>
+  <div><b id=objName></b> &nbsp;<span class=badge id=uplift></span></div>
+  <div class=sub id=metric style="margin-top:4px"></div>
+  <table><thead><tr><th>#</th><th>invest in</th><th>marginal gain</th></tr></thead><tbody id=rows></tbody></table>
+  <div class=hint id=note></div>
+ </div>
+</div>
+<script>
+const DESC={access:"Maximize total jobs people can reach by transit (efficiency).",
+ equity:"Lift the worst-served areas first (fairness).",
+ ridership:"Maximize transit trips (demand)."};
+let DATA=null, cur='access';
+const $=id=>document.getElementById(id);
+function render(){
+ const o=DATA.objectives[cur]; if(!o) return;
+ $('objName').textContent=cur.charAt(0).toUpperCase()+cur.slice(1)+' objective';
+ $('uplift').textContent='+'+o.uplift_pct+'% over baseline';
+ $('metric').textContent=DESC[cur]+' Metric: '+o.metric+'.';
+ const mx=Math.max(...o.steps.map(s=>s.gain),1);
+ $('rows').innerHTML=o.steps.map(s=>`<tr><td class=rank>${s.rank}</td><td>${s.town}</td>`+
+   `<td><div style="display:flex;align-items:center;gap:8px;justify-content:flex-end"><span>${Math.round(s.gain).toLocaleString()}</span>`+
+   `<div class=bar style=width:90px><div style=width:${Math.round(100*s.gain/mx)}%></div></div></div></td></tr>`).join('');
+ $('note').innerHTML=cur==='equity'
+   ?'Notice equity picks <b>outer, underserved towns</b> (Framingham, Peabody…) — a different answer than access, which favors the dense core. That trade-off is the point.'
+   :'Compare with the <b>Equity</b> tab: optimizing for fairness recommends very different places than efficiency. Illustrative model (proxy access in the optimizer); relative ranking is the signal.';
+}
+fetch('boston_optimizer.json').then(r=>r.json()).then(d=>{
+ DATA=d;
+ $('tabs').innerHTML=Object.keys(d.objectives).map(o=>`<button data-o=${o}>${o}</button>`).join('');
+ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{cur=b.dataset.o;document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.o===cur));render();});
+ document.querySelector('#tabs button').classList.add('on'); render();
+}).catch(()=>{$('rows').innerHTML='<tr><td colspan=3>optimizer data not found</td></tr>';});
+</script></body></html>

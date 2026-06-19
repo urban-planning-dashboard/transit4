@@ -1,0 +1,228 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · agent explorer</title>
+<style>
+ :root{--A:#00695C;--B:#E8833A;--line:#e6ebe9;--muted:#667085;--bg:#fafcfb}
+ *{box-sizing:border-box} body{margin:0;font:13px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c}
+ .wrap{display:grid;grid-template-columns:330px 1fr;height:100vh}
+ .ctl{padding:12px 14px;overflow:auto;border-right:1px solid var(--line);background:#fff}
+ .main{display:flex;flex-direction:column;overflow:auto;background:var(--bg)}
+ h1{font-size:14px;margin:0 0 2px;color:var(--A)} .sub{color:var(--muted);font-size:11px;margin-bottom:10px}
+ .seg{display:flex;gap:6px;margin:8px 0}
+ .seg button{flex:1;font:inherit;font-size:12px;padding:6px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer}
+ .seg button.onA{background:var(--A);color:#fff;border-color:var(--A)}
+ .seg button.onB{background:var(--B);color:#fff;border-color:var(--B)}
+ .row{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:12px;color:var(--muted)}
+ .row label{display:flex;align-items:center;gap:5px;cursor:pointer}
+ .reset{font:inherit;font-size:11px;border:1px solid var(--line);background:#f6faf9;border-radius:7px;padding:4px 9px;cursor:pointer}
+ .grp{margin-top:14px} .grp h3{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 6px}
+ .chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+ .chip{font-size:11px;padding:3px 9px;border:1px solid var(--line);border-radius:14px;cursor:pointer;background:#fff;color:#456}
+ .chip.on{color:#fff} .cl{font-size:11px;color:#9aa5b1;margin-bottom:4px}
+ .afilt{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0;min-height:20px}
+ .afilt .f{font-size:11px;background:#e7f4ed;color:#1b7a4b;border-radius:12px;padding:3px 8px;display:inline-flex;gap:6px;align-items:center}
+ .afilt .f b{font-weight:600} .afilt .x{cursor:pointer;font-weight:700;opacity:.7} .afilt .x:hover{opacity:1}
+ .afilt .none{font-size:11px;color:#9aa5b1}
+ .hist{margin-bottom:10px} .hist .hl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:1px}
+ .hist .hl b{color:#14302c;font-weight:600} .hist svg{display:block;cursor:ew-resize;touch-action:none}
+ .top{display:flex;gap:10px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line);background:#fff}
+ .card{flex:1;min-width:150px;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+ .card.A{border-left:3px solid var(--A)} .card.B{border-left:3px solid var(--B)}
+ .card .t{font-size:11px;color:var(--muted)} .card .n{font-size:20px;font-weight:700}
+ .card .d{font-size:11px;color:#456;line-height:1.5;margin-top:3px}
+ .axes{display:flex;gap:10px;padding:10px 14px;align-items:center;font-size:12px;color:var(--muted)}
+ .axes select{font:inherit;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:7px}
+ .plot{flex:1;display:grid;place-items:center;padding:8px}
+</style></head><body>
+<div class=wrap>
+ <div class=ctl>
+  <h1>Agent explorer</h1>
+  <div class=sub>drag across any chart to grab a slice · two cohorts compare in colour</div>
+  <div id=badge style="margin:4px 0 6px"></div>
+  <div class=seg>
+   <button id=bA class=onA>● Set A</button>
+   <button id=bB>● Set B</button>
+  </div>
+  <div class=row>
+   <label><input type=checkbox id=cmp> compare two sets</label>
+   <span style=flex:1></span><button class=reset id=reset>reset active set</button>
+  </div>
+  <div class=afilt id=active></div>
+  <div id=cats></div>
+  <div class=grp><h3>Distributions · brush to filter</h3><div id=hists></div></div>
+ </div>
+ <div class=main>
+  <div class=top id=stats></div>
+  <div class=axes>
+   <span>X</span><select id=x></select>
+   <span>Y</span><select id=y></select>
+   <span style=flex:1></span><span id=tot class=cl></span>
+  </div>
+  <div class=plot><div id=svg></div></div>
+ </div>
+</div>
+<script>
+const NUM={income_k:'Income $k',commute_mi:'Commute mi',transport:'Transport $/yr',cost_burden_pct:'Cost burden %',
+ transit_access_pct:'Transit access %',c_car_work:'Car→work $/yr',c_car_own:'Car own $/yr'};
+const CAT={mode:'Commute mode',hh_type:'Household',age:'Age',has_car:'Car access'};
+const LBL={true:'has car',false:'no car'};
+const COL={A:'#00695C',B:'#E8833A'};
+let AG=[], ext={}, sets={A:{num:{},cat:{}},B:{num:{},cat:{}}}, active='A', compare=false;
+let listA=[], listB=[];
+const disp=(v,val)=>v==='has_car'?LBL[val]:val;
+
+function inSet(a,s){
+ for(const v in s.num){const [lo,hi]=s.num[v]; if(a[v]<lo||a[v]>hi)return false;}
+ for(const v in s.cat){const sel=s.cat[v]; if(sel&&sel.size&&!sel.has(String(a[v])))return false;}
+ return true;
+}
+function recompute(){ listA=AG.filter(a=>inSet(a,sets.A)); listB=compare?AG.filter(a=>inSet(a,sets.B)):[]; }
+
+// ---- categorical chips
+function vals(v){return [...new Set(AG.map(a=>String(a[v])))].sort();}
+function drawCats(){
+ const c=document.getElementById('cats'); c.innerHTML='';
+ for(const v in CAT){
+  const g=document.createElement('div'); g.className='grp';
+  g.innerHTML=`<h3>${CAT[v]}</h3>`;
+  const wrap=document.createElement('div'); wrap.className='chips';
+  vals(v).forEach(val=>{
+   const sel=sets[active].cat[v]; const on=sel&&sel.has(val);
+   const ch=document.createElement('span'); ch.className='chip'+(on?' on':''); ch.textContent=disp(v,val==='true'?true:val==='false'?false:val);
+   if(on){ch.style.background=COL[active];ch.style.borderColor=COL[active];}
+   ch.onclick=()=>{ const s=sets[active].cat; if(!s[v])s[v]=new Set();
+    s[v].has(val)?s[v].delete(val):s[v].add(val); if(!s[v].size)delete s[v]; refresh(); };
+   wrap.appendChild(ch);
+  });
+  g.appendChild(wrap); c.appendChild(g);
+ }
+}
+
+// ---- brushable histograms
+const BINS=26, Wh=300, Hh=58, P=2;
+const fmtH=n=>Math.abs(n)>=1000?Math.round(n/1000)+'k':(Math.round(n*10)/10);
+function drawHists(){
+ const host=document.getElementById('hists'); host.innerHTML='';
+ for(const v in NUM){
+  const [lo,hi]=ext[v], bw=(hi-lo)/BINS||1;
+  const bin=list=>{const c=new Array(BINS).fill(0); list.forEach(a=>{let i=Math.floor((a[v]-lo)/bw); if(i<0)i=0; if(i>=BINS)i=BINS-1; c[i]++;}); return c;};
+  const all=bin(AG), ca=bin(listA), cb=compare?bin(listB):null;
+  const mx=Math.max(...all,1);
+  const sx=val=>P+(val-lo)/((hi-lo)||1)*(Wh-2*P);
+  const bars=all.map((n,i)=>{ const x=P+i/BINS*(Wh-2*P), w=(Wh-2*P)/BINS-0.6;
+    let s=`<rect x=${x.toFixed(1)} y=${(Hh-n/mx*Hh).toFixed(1)} width=${w.toFixed(1)} height=${(n/mx*Hh).toFixed(1)} fill="#dfe7e4"/>`;
+    if(compare){ const ha=ca[i]/mx*Hh, hb=cb[i]/mx*Hh, w2=w/2-0.3;
+      s+=`<rect x=${x.toFixed(1)} y=${(Hh-ha).toFixed(1)} width=${w2.toFixed(1)} height=${ha.toFixed(1)} fill="${COL.A}"/>`;
+      s+=`<rect x=${(x+w2+0.6).toFixed(1)} y=${(Hh-hb).toFixed(1)} width=${w2.toFixed(1)} height=${hb.toFixed(1)} fill="${COL.B}"/>`;
+    } else { const ha=ca[i]/mx*Hh; s+=`<rect x=${x.toFixed(1)} y=${(Hh-ha).toFixed(1)} width=${w.toFixed(1)} height=${ha.toFixed(1)} fill="${COL.A}"/>`; }
+    return s; }).join('');
+  const el=document.createElement('div'); el.className='hist';
+  el.innerHTML=`<div class=hl><span>${NUM[v]}</span><b class=lbl>all</b></div>
+   <svg width=${Wh} height=${Hh} data-v="${v}">${bars}
+     <rect class=bru x=0 y=0 width=0 height=${Hh}/>
+     <line class=bl0 y1=0 y2=${Hh} stroke-width=1.5 style=display:none />
+     <line class=bl1 y1=0 y2=${Hh} stroke-width=1.5 style=display:none /></svg>`;
+  const svg=el.querySelector('svg'), lbl=el.querySelector('.lbl');
+  const bru=el.querySelector('.bru'), bl0=el.querySelector('.bl0'), bl1=el.querySelector('.bl1');
+  // paint the brush IN PLACE (no DOM rebuild) so a drag survives
+  function paint(){
+    const r=sets[active].num[v]||[lo,hi], brushed=r[0]>lo||r[1]<hi, a=sx(r[0]), b=sx(r[1]);
+    bru.setAttribute('x',a.toFixed(1)); bru.setAttribute('width',Math.max(0,b-a).toFixed(1));
+    bru.setAttribute('fill',COL[active]); bru.setAttribute('opacity',brushed?0.16:0.06);
+    bl0.style.display=bl1.style.display=brushed?'':'none';
+    bl0.setAttribute('x1',a.toFixed(1)); bl0.setAttribute('x2',a.toFixed(1)); bl0.setAttribute('stroke',COL[active]);
+    bl1.setAttribute('x1',b.toFixed(1)); bl1.setAttribute('x2',b.toFixed(1)); bl1.setAttribute('stroke',COL[active]);
+    lbl.textContent=brushed?`${fmtH(r[0])} – ${fmtH(r[1])}`:'all';
+  }
+  paint();
+  const toVal=cx=>{const rc=svg.getBoundingClientRect(); let t=(cx-rc.left-P)/(Wh-2*P); t=Math.max(0,Math.min(1,t)); return lo+t*(hi-lo);};
+  let d0=null;
+  svg.addEventListener('pointerdown',e=>{d0=toVal(e.clientX); svg.setPointerCapture(e.pointerId);});
+  svg.addEventListener('pointermove',e=>{ if(d0===null)return; const d1=toVal(e.clientX);
+    sets[active].num[v]=[Math.min(d0,d1),Math.max(d0,d1)];
+    paint(); recompute(); drawStats(); drawScatter(); drawActive(); });   // live, but DON'T rebuild hists
+  svg.addEventListener('pointerup',e=>{ if(d0===null)return; const d1=toVal(e.clientX);
+    if(Math.abs(sx(d1)-sx(d0))<4) delete sets[active].num[v];   // a click (no drag) clears
+    else sets[active].num[v]=[Math.min(d0,d1),Math.max(d0,d1)];
+    d0=null; refresh(); });                                     // full refresh once, on release
+  host.appendChild(el);
+ }
+}
+
+// ---- scatter
+function drawScatter(){
+ const xk=document.getElementById('x').value, yk=document.getElementById('y').value;
+ const [xlo,xhi]=ext[xk],[ylo,yhi]=ext[yk], W=660,H=500,m=52,pw=W-2*m,ph=H-2*m;
+ const px=v=>m+(v-xlo)/((xhi-xlo)||1)*pw, py=v=>H-m-(v-ylo)/((yhi-ylo)||1)*ph;
+ const inA=new Set(listA), inB=new Set(listB);
+ let pts='';
+ AG.forEach(a=>{ const A=inA.has(a),B=inB.has(a); let f,o;
+   if(compare){ f=A&&B?'#6A4C93':A?COL.A:B?COL.B:'#c9d2cf'; o=A||B?0.85:0.15; }
+   else { f=A?COL.A:'#c9d2cf'; o=A?0.8:0.12; }
+   pts+=`<circle cx=${px(a[xk]).toFixed(1)} cy=${py(a[yk]).toFixed(1)} r=3 fill="${f}" opacity=${o}/>`; });
+ const fmt=n=>Math.round(n).toLocaleString();
+ document.getElementById('svg').innerHTML=
+  `<svg width=${W} height=${H}>
+   <line x1=${m} y1=${H-m} x2=${W-m} y2=${H-m} stroke="#cfd8d6"/><line x1=${m} y1=${m} x2=${m} y2=${H-m} stroke="#cfd8d6"/>
+   <text x=${m+pw/2} y=${H-14} text-anchor=middle font-size=12 fill="#14302c">${NUM[xk]}</text>
+   <text x=16 y=${m+ph/2} text-anchor=middle font-size=12 fill="#14302c" transform="rotate(-90 16 ${m+ph/2})">${NUM[yk]}</text>
+   <text x=${m} y=${H-m+15} font-size=10 fill="#9aa5b1">${fmt(xlo)}</text><text x=${W-m} y=${H-m+15} text-anchor=end font-size=10 fill="#9aa5b1">${fmt(xhi)}</text>
+   <text x=${m-6} y=${H-m} text-anchor=end font-size=10 fill="#9aa5b1">${fmt(ylo)}</text><text x=${m-6} y=${m+4} text-anchor=end font-size=10 fill="#9aa5b1">${fmt(yhi)}</text>
+   ${pts}</svg>`;
+}
+
+// ---- stat cards
+function statCard(name,list,cls){
+ if(!list.length) return `<div class="card ${cls}"><div class=t>Set ${name}</div><div class=n>0</div><div class=d>no agents in range</div></div>`;
+ const med=k=>{const s=list.map(a=>a[k]).sort((x,y)=>x-y);return s[s.length>>1];};
+ const tr=Math.round(100*list.filter(a=>a.mode==='transit').length/list.length);
+ const avg=k=>Math.round(list.reduce((s,a)=>s+a[k],0)/list.length);
+ return `<div class="card ${cls}"><div class=t>Set ${name} · ${Math.round(100*list.length/AG.length)}% of pop</div>
+  <div class=n>${list.length.toLocaleString()}</div>
+  <div class=d>median income $${med('income_k')}k · burden ${med('cost_burden_pct')}%<br>
+  ${tr}% transit · avg transport $${avg('transport').toLocaleString()}/yr</div></div>`;
+}
+// ---- active-filter chips (shows every live filter; clear them one at a time)
+function drawActive(){
+ const s=sets[active], chips=[], f=n=>Math.abs(n)>=1000?Math.round(n/1000)+'k':(Math.round(n*10)/10);
+ for(const v in s.num){const r=s.num[v]; chips.push(`<span class=f><b>${NUM[v]}</b> ${f(r[0])}–${f(r[1])} <span class=x data-t=num data-v="${v}">×</span></span>`);}
+ for(const v in s.cat){const sel=s.cat[v]; if(sel&&sel.size) chips.push(`<span class=f><b>${CAT[v]}</b> ${[...sel].map(x=>disp(v,x==='true'?true:x==='false'?false:x)).join('/')} <span class=x data-t=cat data-v="${v}">×</span></span>`);}
+ const host=document.getElementById('active');
+ host.innerHTML=chips.length?chips.join(''):'<span class=none>no filters yet — drag any chart or tap a chip; they stack</span>';
+ host.querySelectorAll('.x').forEach(x=>x.onclick=()=>{ x.dataset.t==='num'?delete sets[active].num[x.dataset.v]:delete sets[active].cat[x.dataset.v]; refresh(); });
+}
+function drawStats(){
+ let h=statCard('A',listA,'A');
+ if(compare) h+=statCard('B',listB,'B');
+ document.getElementById('stats').innerHTML=h;
+}
+
+function refresh(full=true){ recompute(); drawStats(); drawScatter(); drawActive(); if(full){drawCats();drawHists();} else drawHists(); }
+
+// ---- wiring
+document.getElementById('x').innerHTML=document.getElementById('y').innerHTML=
+ Object.entries(NUM).map(([k,l])=>`<option value=${k}>${l}</option>`).join('');
+document.getElementById('x').value='income_k'; document.getElementById('y').value='cost_burden_pct';
+['x','y'].forEach(id=>document.getElementById(id).addEventListener('change',drawScatter));
+function setActive(s){active=s; document.getElementById('bA').className=s==='A'?'onA':''; document.getElementById('bB').className=s==='B'?'onB':''; refresh();}
+document.getElementById('bA').onclick=()=>setActive('A');
+document.getElementById('bB').onclick=()=>{ if(!compare){document.getElementById('cmp').checked=true; compare=true;} setActive('B'); };
+document.getElementById('cmp').onchange=e=>{compare=e.target.checked; if(!compare&&active==='B')setActive('A'); else refresh();};
+document.getElementById('reset').onclick=()=>{sets[active]={num:{},cat:{}}; refresh();};
+
+fetch('boston_confidence.json').then(r=>r.json()).then(b=>{
+ const ok=b.calibrated&&b.within_tolerance, col=ok?'#1b7a4b':'#b06a00', bg=ok?'#e7f4ed':'#fbf1de';
+ const mc=b.mode_choice?` · transit share ${b.mode_choice.predicted_share_pct}% vs observed ${b.mode_choice.target_share_pct}%`:'';
+ const vd=b.mode_choice&&b.mode_choice.spatial_r2!=null?` · VALIDATED town-level: R²=${b.mode_choice.spatial_r2}, held-out RMSE ${b.mode_choice.holdout_rmse_pp}pp`:'';
+ const tip=`${b.metric}: ${b.predicted_mi} mi vs ${b.target_mi} mi (${b.residual_pct>0?'+':''}${b.residual_pct}%)${mc}${vd} · not yet calibrated: ${b.uncalibrated.join('; ')}`;
+ document.getElementById('badge').innerHTML=
+  `<span title="${tip.replace(/"/g,'&quot;')}" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:13px;background:${bg};color:${col};cursor:help">
+    <span style="width:7px;height:7px;border-radius:50%;background:${col}"></span>
+    ${b.mode==='focused'?'Focused · calibrated':'Global · exploratory'} · ±${Math.abs(b.residual_pct)}% · ${b.vintage}</span>`;
+}).catch(()=>{document.getElementById('badge').innerHTML='<span style="font-size:11px;color:#b06a00">⚠ uncalibrated</span>';});
+fetch('boston_agents.json').then(r=>r.json()).then(d=>{
+ AG=d; for(const v in NUM){const a=AG.map(x=>x[v]); ext[v]=[Math.min(...a),Math.max(...a)];}
+ document.getElementById('tot').textContent=AG.length.toLocaleString()+' agents';
+ refresh();
+});
+</script></body></html>

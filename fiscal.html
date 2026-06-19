@@ -1,0 +1,66 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · cost breakdown</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel=stylesheet>
+<style>
+ body{margin:0;font:13px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c}
+ .wrap{display:grid;grid-template-columns:250px 1fr;height:100vh}
+ .ctl{padding:12px 14px;overflow:auto;border-right:1px solid #e6ebe9;background:#fff}
+ #map{height:100%}
+ h1{font-size:14px;margin:0 0 4px;color:#00695C} .h2{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#667085;margin:12px 0 4px}
+ label{display:flex;align-items:center;gap:7px;padding:4px 2px;font-size:13px;cursor:pointer}
+ .mode button{font:inherit;font-size:12px;padding:5px 9px;border:1px solid #e6ebe9;background:#f6faf9;border-radius:7px;cursor:pointer;margin-right:4px}
+ .mode button.on{background:#00695C;color:#fff;border-color:#00695C}
+ .leg{font-size:11px;color:#667085;margin-top:10px;line-height:1.5}
+ .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle;margin-right:4px}
+ .note{font-size:11px;color:#9aa5b1;margin-top:12px;line-height:1.5}
+</style></head><body>
+<div class=wrap>
+ <div class=ctl>
+  <h1>Cost breakdown</h1>
+  <div class=mode><button data-m=cost class=on>Cost</button><button data-m=net>Net vs revenue</button></div>
+  <div class=h2>cost components ($/hh/yr)</div>
+  <div id=comps></div>
+  <div class=leg id=leg></div>
+  <div class=note>Toggle components to analyze any SUBSET; map colors by the sum (or net = revenue − sum). Mode-aware (car vs transit share per area), purpose-split (work / groceries), distance-aware. Illustrative coefficients (docs/FISCAL.md).</div>
+ </div>
+ <div id=map></div>
+</div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+const COMP=[
+ {k:'c_infra',l:'Infrastructure'},{k:'c_car_own',l:'Car ownership'},
+ {k:'c_car_work',l:'Car · to work'},{k:'c_car_groc',l:'Car · to groceries'},
+ {k:'c_parking',l:'Parking'},{k:'c_transit',l:'Transit'}];
+let mode='cost', feats=[];
+const fmt=n=>'$'+Math.round(n).toLocaleString();
+const map=new maplibregl.Map({container:'map',center:[-71.25,42.4],zoom:8.3,style:'https://tiles.openfreemap.org/styles/liberty'});
+window.map=map;
+document.getElementById('comps').innerHTML=COMP.map(c=>`<label><input type=checkbox data-k=${c.k} checked><span>${c.l}</span></label>`).join('');
+function selected(){ return COMP.filter(c=>document.querySelector(`input[data-k=${c.k}]`).checked).map(c=>c.k); }
+function value(p){ const s=selected().reduce((a,k)=>a+(p[k]||0),0); return mode==='net'?(p.revenue_per_hh-s):s; }
+function recompute(){ feats.forEach(f=>f.properties._v=value(f.properties)); if(map.getSource('fz')) map.getSource('fz').setData({type:'FeatureCollection',features:feats}); }
+function domain(){ const vs=feats.map(f=>f.properties._v).sort((a,b)=>a-b); const q=p=>vs[Math.max(0,Math.min(vs.length-1,Math.floor(vs.length*p)))]; return [q(0.05),q(0.95)]; }
+function colorExpr(){ const [lo,hi]=domain(); const ramp = mode==='net'?['#c0392b','#f6f4d8','#00695C']:['#eef3f2','#e08e4f','#9c3b12'];
+  return ['interpolate',['linear'],['coalesce',['get','_v'],lo], lo,ramp[0],(lo+hi)/2,ramp[1],hi,ramp[2]]; }
+function apply(){ recompute(); if(map.getLayer('f')) map.setPaintProperty('f','fill-color',colorExpr());
+  const [lo,hi]=domain(); const ramp=mode==='net'?['#c0392b','#00695C']:['#eef3f2','#9c3b12'];
+  document.getElementById('leg').innerHTML=`<b>${mode==='net'?'Net (revenue − selected)':'Selected cost'} $/hh/yr</b><br><span class=sw style="background:${ramp[0]}"></span>${fmt(lo)} <span class=sw style="background:${ramp[1]};margin-left:8px"></span>${fmt(hi)}<br>click a town for the full breakdown`;
+}
+document.querySelectorAll('input[data-k]').forEach(cb=>cb.onchange=apply);
+document.querySelectorAll('.mode button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('.mode button').forEach(x=>x.classList.toggle('on',x===b));apply();});
+fetch('boston_fiscal.geojson').then(r=>r.json()).then(g=>{ feats=g.features.filter(f=>f.properties.net_per_hh!==undefined&&f.properties.c_infra!==undefined);
+  feats.forEach(f=>f.properties._v=value(f.properties));
+  map.on('load',()=>{
+    map.addSource('fz',{type:'geojson',data:{type:'FeatureCollection',features:feats}});
+    map.addLayer({id:'f',type:'fill',source:'fz',paint:{'fill-color':colorExpr(),'fill-opacity':0.7}});
+    map.addLayer({id:'fl',type:'line',source:'fz',paint:{'line-color':'#fff','line-width':0.5}});
+    map.on('click','f',e=>{const p=e.features[0].properties;
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(
+       `<b>${p.town}</b> · ${p.transit_pct}% transit · ${p.commute_mi}mi to core<br>`+
+       COMP.map(c=>`${c.l}: ${fmt(p[c.k]||0)}`).join('<br>')+
+       `<br><b>selected: ${fmt(selected().reduce((a,k)=>a+(p[k]||0),0))}</b> · revenue ${fmt(p.revenue_per_hh)}`).addTo(map);});
+    apply();
+  });
+});
+</script></body></html>

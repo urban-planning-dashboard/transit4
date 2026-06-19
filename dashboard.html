@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · public dashboard</title>
+<style>
+ :root{--teal:#00695C;--line:#e6ebe9;--muted:#667085;--bg:#f6faf9}
+ *{box-sizing:border-box} html,body{height:100%}
+ body{margin:0;font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c;background:var(--bg);display:flex;flex-direction:column}
+ header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--teal);color:#fff;flex:0 0 auto}
+ header b{font-size:16px} .pill{font-size:12px;background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px}
+ nav{display:flex;gap:4px;padding:6px 12px;background:#fff;border-bottom:1px solid var(--line);flex:0 0 auto;overflow-x:auto}
+ nav button{font:inherit;font-size:13px;background:none;border:0;color:var(--muted);padding:7px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
+ nav button.on{background:var(--bg);color:var(--teal);font-weight:600}
+ main{flex:1;min-height:0;position:relative}
+ .view{position:absolute;inset:0} .view.hide{display:none!important} iframe{width:100%;height:100%;border:0;background:var(--bg)}
+</style></head><body>
+<header><b>transit4</b><span class=pill>urban planning dashboard</span><span style=flex:1></span><span class=pill>public · census-anchored</span></header>
+<nav id=nav>
+ <button data-v=forecasts class=on>Forecasts</button>
+ <button data-v=agents>Agent explorer</button>
+ <button data-v=scatter>Cross-filter</button>
+ <button data-v=fiscal>Fiscal map</button>
+ <button data-v=optimizer>Optimizer</button>
+</nav>
+<main>
+ <div class=view id=v-forecasts><iframe src="results_static.html"></iframe></div>
+ <div class="view hide" id=v-agents><iframe data-src="agents.html"></iframe></div>
+ <div class="view hide" id=v-scatter><iframe data-src="scatter.html"></iframe></div>
+ <div class="view hide" id=v-fiscal><iframe data-src="fiscal.html"></iframe></div>
+ <div class="view hide" id=v-optimizer><iframe data-src="optimizer.html"></iframe></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function setView(v){ document.querySelectorAll('.view').forEach(e=>e.classList.add('hide')); $('v-'+v).classList.remove('hide');
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+ const f=$('v-'+v).querySelector('iframe[data-src]'); if(f){ f.src=f.dataset.src; f.removeAttribute('data-src'); } }
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+</script></body></html>

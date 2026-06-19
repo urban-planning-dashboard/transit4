@@ -1,0 +1,79 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · scatter / cross-filter</title>
+<style>
+ body{margin:0;font:13px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c}
+ .wrap{display:grid;grid-template-columns:270px 1fr;height:100vh}
+ .ctl{padding:14px 16px;overflow:auto;border-right:1px solid #e6ebe9;background:#fff}
+ .plot{display:grid;place-items:center;padding:16px;background:#fafcfb}
+ h1{font-size:14px;margin:0 0 8px;color:#00695C}
+ label{display:block;font-size:12px;color:#667085;margin:10px 0 2px}
+ select{width:100%;font:inherit;padding:6px;border:1px solid #e6ebe9;border-radius:7px}
+ .rng{display:flex;align-items:center;gap:6px;font-size:11px;color:#667085}
+ .rng input{flex:1}
+ .count{margin-top:12px;font-size:13px} .count b{color:#00695C;font-size:18px}
+ .reset{margin-top:8px;font:inherit;font-size:12px;border:1px solid #e6ebe9;background:#f6faf9;border-radius:7px;padding:5px 10px;cursor:pointer}
+ .list{margin-top:10px;font-size:11px;color:#667085;line-height:1.5;max-height:160px;overflow:auto}
+</style></head><body>
+<div class=wrap>
+ <div class=ctl>
+  <h1>Scatter · cross-filter</h1>
+  <label>X axis</label><select id=x></select>
+  <div class=rng><input type=range id=xmin><input type=range id=xmax></div>
+  <label>Y axis</label><select id=y></select>
+  <div class=rng><input type=range id=ymin><input type=range id=ymax></div>
+  <label>Color by</label><select id=c></select>
+  <div class=count><b id=n>—</b> of <span id=tot></span> areas in range</div>
+  <button class=reset id=reset>reset ranges</button>
+  <div class=list id=list></div>
+ </div>
+ <div class=plot><div id=svg></div></div>
+</div>
+<script>
+const VARS={transit_pct:'Transit share %',commute_mi:'Commute distance (mi)',net_per_hh:'Municipal net $/hh',
+ infra_per_hh:'Infrastructure $/hh',transport_cost:'Household transport $/yr',min_cost_life:'Min cost of life $/yr',
+ c_car_work:'Car → work $/yr',c_car_own:'Car ownership $/yr',density_hh_km2:'Density (hh/km²)',
+ hh:'Households',jobs:'Jobs',jobs_per_hh:'Jobs per household'};
+let D=[];
+const opts=sel=>Object.entries(VARS).map(([k,l])=>`<option value=${k}>${l}</option>`).join('');
+['x','y','c'].forEach(id=>document.getElementById(id).innerHTML=opts());
+document.getElementById('x').value='commute_mi';
+document.getElementById('y').value='transport_cost';
+document.getElementById('c').value='transit_pct';
+const ext=k=>{const v=D.map(d=>d[k]);return [Math.min(...v),Math.max(...v)];};
+function setSliders(){ for(const ax of ['x','y']){ const k=document.getElementById(ax).value,[lo,hi]=ext(k),step=(hi-lo)/100||1;
+  for(const s of [ax+'min',ax+'max']){const el=document.getElementById(s);el.min=lo;el.max=hi;el.step=step;}
+  document.getElementById(ax+'min').value=lo;document.getElementById(ax+'max').value=hi; } }
+function draw(){
+  const xk=document.getElementById('x').value,yk=document.getElementById('y').value,ck=document.getElementById('c').value;
+  const [xlo,xhi]=ext(xk),[ylo,yhi]=ext(yk),[clo,chi]=ext(ck);
+  const xmin=+document.getElementById('xmin').value,xmax=+document.getElementById('xmax').value;
+  const ymin=+document.getElementById('ymin').value,ymax=+document.getElementById('ymax').value;
+  const W=720,H=560,m=54, pw=W-m*2,ph=H-m*2;
+  const px=v=>m+(v-xlo)/((xhi-xlo)||1)*pw, py=v=>H-m-(v-ylo)/((yhi-ylo)||1)*ph;
+  const col=v=>{const t=(v-clo)/((chi-clo)||1);const a=[236,239,241],b=[0,105,92];return `rgb(${a.map((x,i)=>Math.round(x+(b[i]-x)*t)).join(',')})`;};
+  let pass=0,inlist=[];
+  let pts='';
+  D.forEach(d=>{ const ok=d[xk]>=xmin&&d[xk]<=xmax&&d[yk]>=ymin&&d[yk]<=ymax; if(ok){pass++;inlist.push(d.town);}
+    pts+=`<circle cx=${px(d[xk]).toFixed(1)} cy=${py(d[yk]).toFixed(1)} r=5 fill="${col(d[ck])}" stroke="#fff" stroke-width=0.7 opacity=${ok?0.95:0.12}><title>${d.town}: ${VARS[xk]} ${d[xk]}, ${VARS[yk]} ${d[yk]}</title></circle>`; });
+  const fmt=n=>Math.round(n).toLocaleString();
+  document.getElementById('svg').innerHTML=
+   `<svg width=${W} height=${H} font-family="-apple-system,sans-serif">
+    <line x1=${m} y1=${H-m} x2=${W-m} y2=${H-m} stroke="#cfd8d6"/><line x1=${m} y1=${m} x2=${m} y2=${H-m} stroke="#cfd8d6"/>
+    <text x=${m+pw/2} y=${H-14} text-anchor=middle font-size=13 fill="#14302c">${VARS[xk]}</text>
+    <text x=18 y=${m+ph/2} text-anchor=middle font-size=13 fill="#14302c" transform="rotate(-90 18 ${m+ph/2})">${VARS[yk]}</text>
+    <text x=${m} y=${H-m+16} font-size=10 fill="#9aa5b1">${fmt(xlo)}</text><text x=${W-m} y=${H-m+16} text-anchor=end font-size=10 fill="#9aa5b1">${fmt(xhi)}</text>
+    <text x=${m-6} y=${H-m} text-anchor=end font-size=10 fill="#9aa5b1">${fmt(ylo)}</text><text x=${m-6} y=${m+4} text-anchor=end font-size=10 fill="#9aa5b1">${fmt(yhi)}</text>
+    ${pts}</svg>`;
+  document.getElementById('n').textContent=pass;
+  document.getElementById('list').textContent=inlist.sort().join(', ');
+}
+['x','y'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{setSliders();draw();}));
+document.getElementById('c').addEventListener('change',draw);
+['xmin','xmax','ymin','ymax'].forEach(id=>document.getElementById(id).addEventListener('input',draw));
+document.getElementById('reset').onclick=()=>{setSliders();draw();};
+fetch('boston_fiscal.geojson').then(r=>r.json()).then(g=>{
+  D=g.features.map(f=>f.properties).filter(p=>p.hh&&p.net_per_hh!==undefined);
+  document.getElementById('tot').textContent=D.length; setSliders(); draw();
+});
+</script></body></html>

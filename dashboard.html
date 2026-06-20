@@ -16,6 +16,7 @@
 <header><b>transit4</b><span class=pill>urban planning dashboard</span><span style=flex:1></span><span class=pill>public · census-anchored</span></header>
 <nav id=nav>
  <button data-v=forecasts class=on>Forecasts</button>
+ <button data-v=cities>Cities</button>
  <button data-v=agents>Agent explorer</button>
  <button data-v=scatter>Cross-filter</button>
  <button data-v=fiscal>Fiscal map</button>
@@ -23,6 +24,7 @@
 </nav>
 <main>
  <div class=view id=v-forecasts><iframe src="results_static.html"></iframe></div>
+ <div class="view hide" id=v-cities><iframe data-src="cities.html"></iframe></div>
  <div class="view hide" id=v-agents><iframe data-src="agents.html"></iframe></div>
  <div class="view hide" id=v-scatter><iframe data-src="scatter.html"></iframe></div>
  <div class="view hide" id=v-fiscal><iframe data-src="fiscal.html"></iframe></div>

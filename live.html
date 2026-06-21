@@ -1,0 +1,55 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · live</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel=stylesheet>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+ :root{--teal:#00695C}
+ *{box-sizing:border-box} html,body{height:100%;margin:0}
+ body{font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c}
+ #map{position:absolute;inset:0}
+ .hud{position:absolute;top:10px;left:10px;z-index:2;background:rgba(255,255,255,.94);border-radius:10px;padding:10px 13px;box-shadow:0 1px 6px rgba(0,0,0,.15);max-width:240px}
+ .hud b{color:var(--teal)} .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#1b7a4b;margin-right:5px;animation:p 1.5s infinite}
+ @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+ .k{font-size:11px;color:#667085;margin-top:4px;line-height:1.5}
+ .legend{margin-top:7px;font-size:11px} .sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
+</style></head><body>
+<div id=map></div>
+<div class=hud>
+ <div><span class=dot></span><b>Live transit</b> — Boston (MBTA)</div>
+ <div class=k id=stat>connecting…</div>
+ <div class=legend id=legend></div>
+ <div class=k>Real GTFS-realtime vehicle positions, refreshed every 15s.</div>
+</div>
+<script>
+const TYPE={0:['Light rail','#00843D'],1:['Subway','#003DA5'],2:['Commuter rail','#80276C'],3:['Bus','#FFC72C'],4:['Ferry','#008EAA']};
+const map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[-71.06,42.36],zoom:11});
+document.getElementById('legend').innerHTML=Object.values(TYPE).map(([n,c])=>`<span class=sw style=background:${c}></span>${n} `).join('');
+map.on('load',()=>{
+ map.addSource('veh',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+ map.addLayer({id:'veh',type:'circle',source:'veh',paint:{
+   'circle-radius':['interpolate',['linear'],['zoom'],10,3.5,14,6],
+   'circle-color':['get','color'],'circle-stroke-width':1,'circle-stroke-color':'#fff','circle-opacity':.9}});
+ map.on('click','veh',e=>{const p=e.features[0].properties;
+   new maplibregl.Popup().setLngLat(e.lngLat).setHTML(`<b>${p.label||p.id}</b><br>${p.routeType} · ${p.route||''}<br>${p.status}`).addTo(map);});
+ map.on('mouseenter','veh',()=>map.getCanvas().style.cursor='pointer');
+ map.on('mouseleave','veh',()=>map.getCanvas().style.cursor='');
+ tick(); setInterval(tick,15000);
+});
+async function tick(){
+ try{
+  const r=await fetch('https://api-v3.mbta.com/vehicles?include=route&page%5Blimit%5D=1000');
+  const j=await r.json();
+  const rt={}; (j.included||[]).forEach(x=>{if(x.type==='route')rt[x.id]=x.attributes.type;});
+  const feats=(j.data||[]).filter(v=>v.attributes.latitude).map(v=>{
+   const a=v.attributes, rid=v.relationships?.route?.data?.id||'', tp=rt[rid];
+   const [tn,col]=TYPE[tp]||['Transit','#667085'];
+   return {type:'Feature',geometry:{type:'Point',coordinates:[a.longitude,a.latitude]},
+     properties:{id:v.id,label:a.label,status:(a.current_status||'').replace(/_/g,' '),route:rid,routeType:tn,color:col}};
+  });
+  map.getSource('veh').setData({type:'FeatureCollection',features:feats});
+  const t=new Date().toLocaleTimeString();
+  document.getElementById('stat').innerHTML=`<b>${feats.length}</b> vehicles live · updated ${t}`;
+ }catch(e){ document.getElementById('stat').textContent='live feed unavailable (rate-limited?) — retrying…'; }
+}
+</script></body></html>

@@ -4,7 +4,7 @@
   {
    "id": "boston",
    "name": "Boston, US",
-   "tier": "calibrated (LODES/ACS, routed)",
+   "tier": "calibrated \u00b7 official 2040 horizon",
    "beta": 0.0579,
    "calib": 1.08,
    "target_share_pct": 17.1,
@@ -38,7 +38,7 @@
   {
    "id": "chicago",
    "name": "Chicago, US",
-   "tier": "calibrated (LODES/ACS, proxy)",
+   "tier": "calibrated \u00b7 2045 horizon",
    "beta": 0.1483,
    "calib": 1.003,
    "target_share_pct": 13.1,
@@ -50,15 +50,15 @@
      "avg_trip_mi": 11.01
     },
     {
-     "label": "2040 control",
+     "label": "2045 control",
      "transit_pct": 13.1,
-     "transit_trips": 538301,
-     "avg_trip_mi": 11.01
+     "transit_trips": 622274,
+     "avg_trip_mi": 11.0
     },
     {
-     "label": "2040 + River North/Fulton Market TOD",
+     "label": "2045 + TOD",
      "transit_pct": 13.1,
-     "transit_trips": 543066,
+     "transit_trips": 627783,
      "avg_trip_mi": 11.21
     }
    ]
@@ -66,7 +66,7 @@
   {
    "id": "seattle",
    "name": "Seattle, US",
-   "tier": "calibrated (LODES/ACS, proxy)",
+   "tier": "calibrated \u00b7 2045 horizon",
    "beta": 0.1269,
    "calib": 1.003,
    "target_share_pct": 10.0,
@@ -78,15 +78,15 @@
      "avg_trip_mi": 11.01
     },
     {
-     "label": "2040 control",
+     "label": "2045 control",
      "transit_pct": 10.0,
-     "transit_trips": 184786,
-     "avg_trip_mi": 11.01
+     "transit_trips": 213613,
+     "avg_trip_mi": 11.0
     },
     {
-     "label": "2040 + Capitol Hill/SLU TOD",
+     "label": "2045 + TOD",
      "transit_pct": 10.0,
-     "transit_trips": 188395,
+     "transit_trips": 217785,
      "avg_trip_mi": 11.12
     }
    ]
@@ -94,7 +94,7 @@
   {
    "id": "toronto",
    "name": "Toronto, CA",
-   "tier": "exploratory (StatCan geom + TTC GTFS)",
+   "tier": "exploratory \u00b7 2045 horizon",
    "beta": 0.0128,
    "calib": 0.999,
    "target_share_pct": 26.2,
@@ -102,19 +102,19 @@
     {
      "label": "2021 baseline",
      "transit_pct": 26.2,
-     "transit_trips": 312839,
+     "transit_trips": 316595,
+     "avg_trip_mi": 9.0
+    },
+    {
+     "label": "2045 control",
+     "transit_pct": 26.2,
+     "transit_trips": 361668,
      "avg_trip_mi": 9.01
     },
     {
-     "label": "2046 control",
+     "label": "2045 + TOD",
      "transit_pct": 26.2,
-     "transit_trips": 312839,
-     "avg_trip_mi": 9.01
-    },
-    {
-     "label": "2046 + downtown/waterfront TOD",
-     "transit_pct": 26.2,
-     "transit_trips": 317257,
+     "transit_trips": 366776,
      "avg_trip_mi": 8.98
     }
    ]
@@ -122,7 +122,7 @@
   {
    "id": "glasgow",
    "name": "Glasgow, UK",
-   "tier": "exploratory (NRS census geom + pop)",
+   "tier": "exploratory \u00b7 2045 horizon",
    "beta": 0.005,
    "calib": 1.003,
    "target_share_pct": 14.0,
@@ -130,23 +130,23 @@
     {
      "label": "2022 baseline",
      "transit_pct": 14.0,
-     "transit_trips": 56510,
+     "transit_trips": 57527,
      "avg_trip_mi": 4.91
     },
     {
      "label": "2045 control",
      "transit_pct": 14.0,
-     "transit_trips": 56510,
+     "transit_trips": 65327,
      "avg_trip_mi": 4.91
     },
     {
-     "label": "2045 + Clyde waterfront TOD",
+     "label": "2045 + TOD",
      "transit_pct": 14.0,
-     "transit_trips": 60856,
+     "transit_trips": 70351,
      "avg_trip_mi": 4.74
     }
    ]
   }
  ],
- "note": "US cities use LODES/ACS census jobs+workers (calibrated tier). Toronto/Glasgow use real government census GEOMETRY (StatCan tracts / NRS data zones) + the published transit-share target, with per-zone activity proxied (TTC GTFS stop density for Toronto; NRS census population for Glasgow) \u2014 exploratory tier, pending each country's place-of-work jobs data."
+ "note": "Each city calibrates to its own observed transit share. Projections use a CONSISTENT 2045 horizon + a uniform regional growth assumption (Boston keeps its official CTPS 2040 projection). US cities = LODES/ACS census jobs (calibrated); Toronto/Glasgow = real gov census geometry + proxied activity (exploratory)."
 }

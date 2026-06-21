@@ -25,7 +25,7 @@
 fetch('cities_compare.json').then(r=>r.json()).then(d=>{
  document.getElementById('cards').innerHTML = d.cities.map(c=>{
    const b=c.scenarios[0];
-   return `<div class=card><div class=city>${c.name}</div>
+   return `<div class=card><div class=city>${c.name}</div><div style='font-size:10px;color:#8a94a6'>${c.tier||''}</div>
      <div class=big>${b.transit_pct}%</div><div class=k>transit mode share (target ${c.target_share_pct}%) <span class=badge>calibrated</span></div>
      <table><tr><td>Avg trip</td><td>${b.avg_trip_mi} mi</td></tr>
      <tr><td>Transit trips/day</td><td>${b.transit_trips.toLocaleString()}</td></tr>

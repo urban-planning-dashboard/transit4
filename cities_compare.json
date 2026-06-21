@@ -1,113 +1,152 @@
 {
- "region": "US metros \u2014 census-anchored transit model",
+ "region": "International metros \u2014 one model, calibrated per city",
  "cities": [
   {
    "id": "boston",
-   "name": "Boston (CTPS TAZ, routed)",
+   "name": "Boston, US",
+   "tier": "calibrated (LODES/ACS, routed)",
    "beta": 0.0579,
    "calib": 1.08,
    "target_share_pct": 17.1,
    "scenarios": [
     {
      "label": "2019 baseline",
-     "year": 2019,
      "transit_pct": 17.1,
      "transit_trips": 283429,
-     "avg_trip_mi": 11.01,
-     "jobs45": 1076823
+     "avg_trip_mi": 11.01
     },
     {
      "label": "2026 current",
-     "year": 2026,
      "transit_pct": 17.6,
      "transit_trips": 300884,
-     "avg_trip_mi": 10.88,
-     "jobs45": 1117807
+     "avg_trip_mi": 10.88
     },
     {
      "label": "2040 control",
-     "year": 2040,
      "transit_pct": 18.5,
      "transit_trips": 335795,
-     "avg_trip_mi": 10.65,
-     "jobs45": 1198523
+     "avg_trip_mi": 10.65
     },
     {
      "label": "2040 + Allston dev",
-     "year": 2040,
      "transit_pct": 19.1,
      "transit_trips": 363285,
-     "avg_trip_mi": 10.46,
-     "jobs45": 1252561
+     "avg_trip_mi": 10.46
     }
    ]
   },
   {
    "id": "chicago",
-   "name": "Chicago (tracts, proxy)",
+   "name": "Chicago, US",
+   "tier": "calibrated (LODES/ACS, proxy)",
    "beta": 0.1483,
    "calib": 1.003,
    "target_share_pct": 13.1,
    "scenarios": [
     {
      "label": "2019 baseline",
-     "year": 2019,
      "transit_pct": 13.1,
      "transit_trips": 538301,
-     "avg_trip_mi": 11.01,
-     "jobs45": 699014
+     "avg_trip_mi": 11.01
     },
     {
      "label": "2040 control",
-     "year": 2040,
      "transit_pct": 13.1,
      "transit_trips": 538301,
-     "avg_trip_mi": 11.01,
-     "jobs45": 699014
+     "avg_trip_mi": 11.01
     },
     {
      "label": "2040 + River North/Fulton Market TOD",
-     "year": 2040,
      "transit_pct": 13.1,
      "transit_trips": 543066,
-     "avg_trip_mi": 11.21,
-     "jobs45": 813550
+     "avg_trip_mi": 11.21
     }
    ]
   },
   {
    "id": "seattle",
-   "name": "Seattle (tracts, proxy)",
+   "name": "Seattle, US",
+   "tier": "calibrated (LODES/ACS, proxy)",
    "beta": 0.1269,
    "calib": 1.003,
    "target_share_pct": 10.0,
    "scenarios": [
     {
      "label": "2019 baseline",
-     "year": 2019,
      "transit_pct": 10.0,
      "transit_trips": 184786,
-     "avg_trip_mi": 11.01,
-     "jobs45": 427816
+     "avg_trip_mi": 11.01
     },
     {
      "label": "2040 control",
-     "year": 2040,
      "transit_pct": 10.0,
      "transit_trips": 184786,
-     "avg_trip_mi": 11.01,
-     "jobs45": 427816
+     "avg_trip_mi": 11.01
     },
     {
      "label": "2040 + Capitol Hill/SLU TOD",
-     "year": 2040,
      "transit_pct": 10.0,
      "transit_trips": 188395,
-     "avg_trip_mi": 11.12,
-     "jobs45": 488549
+     "avg_trip_mi": 11.12
+    }
+   ]
+  },
+  {
+   "id": "toronto",
+   "name": "Toronto, CA",
+   "tier": "exploratory (StatCan geom + TTC GTFS)",
+   "beta": 0.0128,
+   "calib": 0.999,
+   "target_share_pct": 26.2,
+   "scenarios": [
+    {
+     "label": "2021 baseline",
+     "transit_pct": 26.2,
+     "transit_trips": 312839,
+     "avg_trip_mi": 9.01
+    },
+    {
+     "label": "2046 control",
+     "transit_pct": 26.2,
+     "transit_trips": 312839,
+     "avg_trip_mi": 9.01
+    },
+    {
+     "label": "2046 + downtown/waterfront TOD",
+     "transit_pct": 26.2,
+     "transit_trips": 317257,
+     "avg_trip_mi": 8.98
+    }
+   ]
+  },
+  {
+   "id": "glasgow",
+   "name": "Glasgow, UK",
+   "tier": "exploratory (NRS census geom + pop)",
+   "beta": 0.005,
+   "calib": 1.003,
+   "target_share_pct": 14.0,
+   "scenarios": [
+    {
+     "label": "2022 baseline",
+     "transit_pct": 14.0,
+     "transit_trips": 56510,
+     "avg_trip_mi": 4.91
+    },
+    {
+     "label": "2045 control",
+     "transit_pct": 14.0,
+     "transit_trips": 56510,
+     "avg_trip_mi": 4.91
+    },
+    {
+     "label": "2045 + Clyde waterfront TOD",
+     "transit_pct": 14.0,
+     "transit_trips": 60856,
+     "avg_trip_mi": 4.74
     }
    ]
   }
  ],
- "note": "Boston uses bespoke CTPS TAZ + GTFS-routed accessibility; Chicago/Seattle use the scalable census-tract pipeline with a straight-line access proxy (GTFS skim = next refinement). Transit share + trip length + transit trips are calibrated to each metro's ACS/NHTS targets."
+ "note": "US cities use LODES/ACS census jobs+workers (calibrated tier). Toronto/Glasgow use real government census GEOMETRY (StatCan tracts / NRS data zones) + the published transit-share target, with per-zone activity proxied (TTC GTFS stop density for Toronto; NRS census population for Glasgow) \u2014 exploratory tier, pending each country's place-of-work jobs data."
 }

@@ -1,0 +1,70 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · transit map</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel=stylesheet>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+ :root{--teal:#00695C}
+ *{box-sizing:border-box} html,body{height:100%;margin:0}
+ body{font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c}
+ #map{position:absolute;inset:0}
+ .hud{position:absolute;top:10px;left:10px;z-index:2;background:rgba(255,255,255,.95);border-radius:10px;padding:10px 13px;box-shadow:0 1px 6px rgba(0,0,0,.15);max-width:250px}
+ .hud b{color:var(--teal)} select{font:inherit;padding:5px 6px;border:1px solid #d6e0dd;border-radius:7px;width:100%;margin-top:6px}
+ .k{font-size:11px;color:#667085;margin-top:6px;line-height:1.5}
+ .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#1b7a4b;margin-right:5px;animation:p 1.5s infinite}
+ @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+</style></head><body>
+<div id=map></div>
+<div class=hud>
+ <div><b>Transit map</b></div>
+ <select id=city>
+  <option value=boston data-c="-71.079,42.352">Boston (MBTA) — live</option>
+  <option value=chicago data-c="-87.683,41.859">Chicago (CTA)</option>
+  <option value=seattle data-c="-122.258,47.566">Seattle (KCM)</option>
+  <option value=toronto data-c="-79.398,43.722">Toronto (TTC)</option>
+ </select>
+ <div class=k id=stat>loading…</div>
+ <div class=k id=livek></div>
+</div>
+<script>
+const TYPE={0:'#00843D',1:'#003DA5',2:'#80276C',3:'#FFC72C',4:'#008EAA'};
+const map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[-71.079,42.352],zoom:11});
+let liveTimer=null;
+map.on('load',()=>{
+ map.addSource('stops',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+ map.addLayer({id:'stops',type:'circle',source:'stops',paint:{
+   'circle-radius':['interpolate',['linear'],['zoom'],9,1.6,14,4],
+   'circle-color':'#00695C','circle-opacity':.55}});
+ map.addSource('veh',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+ map.addLayer({id:'veh',type:'circle',source:'veh',paint:{
+   'circle-radius':['interpolate',['linear'],['zoom'],10,4,14,7],
+   'circle-color':['get','color'],'circle-stroke-width':1.2,'circle-stroke-color':'#fff'}});
+ map.on('click','stops',e=>new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>'+(e.features[0].properties.name||'stop')+'</b>').addTo(map));
+ document.getElementById('city').onchange=load; load();
+});
+async function load(){
+ if(liveTimer){clearInterval(liveTimer);liveTimer=null;}
+ map.getSource('veh').setData({type:'FeatureCollection',features:[]});
+ document.getElementById('livek').textContent='';
+ const sel=document.getElementById('city'), city=sel.value;
+ const [lon,lat]=sel.selectedOptions[0].dataset.c.split(',').map(Number);
+ map.flyTo({center:[lon,lat],zoom:11});
+ try{
+  const g=await (await fetch(city+'_stops.geojson')).json();
+  map.getSource('stops').setData(g);
+  document.getElementById('stat').innerHTML=`<b>${g.n_total.toLocaleString()}</b> transit stops · ${city}`;
+ }catch(e){ document.getElementById('stat').textContent='stops unavailable'; }
+ if(city==='boston'){ liveVehicles(); liveTimer=setInterval(liveVehicles,15000); }
+}
+async function liveVehicles(){
+ try{
+  const r=await fetch('https://api-v3.mbta.com/vehicles?include=route&page%5Blimit%5D=1000'); const j=await r.json();
+  const rt={}; (j.included||[]).forEach(x=>{if(x.type==='route')rt[x.id]=x.attributes.type;});
+  const feats=(j.data||[]).filter(v=>v.attributes.latitude).map(v=>{
+   const a=v.attributes; const tp=rt[v.relationships?.route?.data?.id]||3;
+   return {type:'Feature',geometry:{type:'Point',coordinates:[a.longitude,a.latitude]},properties:{color:TYPE[tp]||'#667085'}};});
+  map.getSource('veh').setData({type:'FeatureCollection',features:feats});
+  document.getElementById('livek').innerHTML=`<span class=dot></span><b>${feats.length}</b> vehicles live (15s) · ${new Date().toLocaleTimeString()}`;
+ }catch(e){ document.getElementById('livek').textContent='live feed rate-limited — retrying'; }
+}
+</script></body></html>

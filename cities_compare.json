@@ -1,10 +1,10 @@
 {
- "region": "International metros \u2014 one model, calibrated per city",
+ "region": "US + international metros \u2014 census-anchored / OSM intake",
  "cities": [
   {
    "id": "boston",
-   "name": "Boston, US",
-   "tier": "calibrated \u00b7 official 2040 horizon",
+   "name": "Boston",
+   "tier": "US census \u00b7 routed",
    "beta": 0.0579,
    "calib": 1.08,
    "target_share_pct": 17.1,
@@ -13,32 +13,36 @@
      "label": "2019 baseline",
      "transit_pct": 17.1,
      "transit_trips": 283429,
-     "avg_trip_mi": 11.01
+     "avg_trip_mi": 11.01,
+     "jobs45": 1076823
     },
     {
      "label": "2026 current",
      "transit_pct": 17.6,
      "transit_trips": 300884,
-     "avg_trip_mi": 10.88
+     "avg_trip_mi": 10.88,
+     "jobs45": 1117807
     },
     {
      "label": "2040 control",
      "transit_pct": 18.5,
      "transit_trips": 335795,
-     "avg_trip_mi": 10.65
+     "avg_trip_mi": 10.65,
+     "jobs45": 1198523
     },
     {
      "label": "2040 + Allston dev",
      "transit_pct": 19.1,
      "transit_trips": 363285,
-     "avg_trip_mi": 10.46
+     "avg_trip_mi": 10.46,
+     "jobs45": 1252561
     }
    ]
   },
   {
    "id": "chicago",
-   "name": "Chicago, US",
-   "tier": "calibrated \u00b7 2045 horizon",
+   "name": "Chicago",
+   "tier": "US census tract",
    "beta": 0.1483,
    "calib": 1.003,
    "target_share_pct": 13.1,
@@ -47,26 +51,29 @@
      "label": "2019 baseline",
      "transit_pct": 13.1,
      "transit_trips": 538301,
-     "avg_trip_mi": 11.01
+     "avg_trip_mi": 11.01,
+     "jobs45": 699014
     },
     {
      "label": "2045 control",
      "transit_pct": 13.1,
      "transit_trips": 622274,
-     "avg_trip_mi": 11.0
+     "avg_trip_mi": 11.0,
+     "jobs45": 808061
     },
     {
      "label": "2045 + TOD",
      "transit_pct": 13.1,
      "transit_trips": 627783,
-     "avg_trip_mi": 11.21
+     "avg_trip_mi": 11.21,
+     "jobs45": 940465
     }
    ]
   },
   {
    "id": "seattle",
-   "name": "Seattle, US",
-   "tier": "calibrated \u00b7 2045 horizon",
+   "name": "Seattle",
+   "tier": "US census tract",
    "beta": 0.1269,
    "calib": 1.003,
    "target_share_pct": 10.0,
@@ -75,78 +82,87 @@
      "label": "2019 baseline",
      "transit_pct": 10.0,
      "transit_trips": 184786,
-     "avg_trip_mi": 11.01
+     "avg_trip_mi": 11.01,
+     "jobs45": 427816
     },
     {
      "label": "2045 control",
      "transit_pct": 10.0,
      "transit_trips": 213613,
-     "avg_trip_mi": 11.0
+     "avg_trip_mi": 11.0,
+     "jobs45": 494553
     },
     {
      "label": "2045 + TOD",
      "transit_pct": 10.0,
      "transit_trips": 217785,
-     "avg_trip_mi": 11.12
+     "avg_trip_mi": 11.12,
+     "jobs45": 564760
     }
    ]
   },
   {
    "id": "toronto",
-   "name": "Toronto, CA",
-   "tier": "exploratory \u00b7 2045 horizon",
-   "beta": 0.0128,
+   "name": "Toronto",
+   "tier": "OSM + census total (CA)",
+   "beta": 0.1228,
    "calib": 0.999,
-   "target_share_pct": 26.2,
+   "target_share_pct": 28.0,
    "scenarios": [
     {
-     "label": "2021 baseline",
-     "transit_pct": 26.2,
-     "transit_trips": 316595,
-     "avg_trip_mi": 9.0
+     "label": "Baseline (OSM current)",
+     "transit_pct": 28.0,
+     "transit_trips": 390735,
+     "avg_trip_mi": 7.01,
+     "jobs45": 1004373
     },
     {
-     "label": "2045 control",
-     "transit_pct": 26.2,
-     "transit_trips": 361668,
-     "avg_trip_mi": 9.01
+     "label": "Horizon growth",
+     "transit_pct": 28.0,
+     "transit_trips": 449342,
+     "avg_trip_mi": 7.0,
+     "jobs45": 1155041
     },
     {
-     "label": "2045 + TOD",
-     "transit_pct": 26.2,
-     "transit_trips": 366776,
-     "avg_trip_mi": 8.98
+     "label": "Horizon + downtown TOD",
+     "transit_pct": 28.0,
+     "transit_trips": 454101,
+     "avg_trip_mi": 6.97,
+     "jobs45": 1255325
     }
    ]
   },
   {
    "id": "glasgow",
-   "name": "Glasgow, UK",
-   "tier": "exploratory \u00b7 2045 horizon",
+   "name": "Glasgow",
+   "tier": "OSM + census total (UK)",
    "beta": 0.005,
    "calib": 1.003,
    "target_share_pct": 14.0,
    "scenarios": [
     {
-     "label": "2022 baseline",
+     "label": "Baseline (OSM current)",
      "transit_pct": 14.0,
-     "transit_trips": 57527,
-     "avg_trip_mi": 4.91
+     "transit_trips": 43713,
+     "avg_trip_mi": 3.85,
+     "jobs45": 409097
     },
     {
-     "label": "2045 control",
+     "label": "Horizon growth",
      "transit_pct": 14.0,
-     "transit_trips": 65327,
-     "avg_trip_mi": 4.91
+     "transit_trips": 48958,
+     "avg_trip_mi": 3.85,
+     "jobs45": 458177
     },
     {
-     "label": "2045 + TOD",
+     "label": "Horizon + city-centre TOD",
      "transit_pct": 14.0,
-     "transit_trips": 70351,
-     "avg_trip_mi": 4.74
+     "transit_trips": 49649,
+     "avg_trip_mi": 3.75,
+     "jobs45": 531541
     }
    ]
   }
  ],
- "note": "Each city calibrates to its own observed transit share. Projections use a CONSISTENT 2045 horizon + a uniform regional growth assumption (Boston keeps its official CTPS 2040 projection). US cities = LODES/ACS census jobs (calibrated); Toronto/Glasgow = real gov census geometry + proxied activity (exploratory)."
+ "note": "US metros use the exact census-tract pipeline; international cities (Toronto, Glasgow) use the OSM intake for spatial structure with population/jobs magnitude anchored to the national census total. Each calibrated to its own observed transit-share target."
 }

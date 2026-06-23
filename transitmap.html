@@ -19,9 +19,9 @@
  <div><b>Transit map</b></div>
  <select id=city>
   <option value=boston data-c="-71.079,42.352">Boston (MBTA) — live</option>
-  <option value=chicago data-c="-87.683,41.859">Chicago (CTA)</option>
-  <option value=seattle data-c="-122.258,47.566">Seattle (KCM)</option>
-  <option value=toronto data-c="-79.398,43.722">Toronto (TTC)</option>
+  <option value=toronto data-c="-79.398,43.722">Toronto (TTC) — stops</option>
+  <option value=seattle data-c="-122.258,47.566">Seattle (KCM) — live</option>
+  <option value=chicago data-c="-87.683,41.859">Chicago (CTA) — stops</option>
  </select>
  <div class=k id=stat>loading…</div>
  <div class=k id=livek></div>
@@ -42,29 +42,35 @@ map.on('load',()=>{
  map.on('click','stops',e=>new maplibregl.Popup().setLngLat(e.lngLat).setHTML('<b>'+(e.features[0].properties.name||'stop')+'</b>').addTo(map));
  document.getElementById('city').onchange=load; load();
 });
+// Live vehicle snapshots are refreshed SERVER-SIDE (Hetzner systemd service) every
+// ~30s and served with CORS, so every city with an open realtime feed shows real
+// moving vehicles — no client key, no per-agency CORS.
+const LIVE_BASE='https://167.233.64.97/t4/';
+const LIVE_CITIES={boston:1,seattle:1};
+let liveCity=null;
 async function load(){
  if(liveTimer){clearInterval(liveTimer);liveTimer=null;}
  map.getSource('veh').setData({type:'FeatureCollection',features:[]});
  document.getElementById('livek').textContent='';
- const sel=document.getElementById('city'), city=sel.value;
+ const sel=document.getElementById('city'), city=sel.value; liveCity=city;
  const [lon,lat]=sel.selectedOptions[0].dataset.c.split(',').map(Number);
  map.flyTo({center:[lon,lat],zoom:11});
  try{
   const g=await (await fetch(city+'_stops.geojson')).json();
   map.getSource('stops').setData(g);
-  document.getElementById('stat').innerHTML=`<b>${g.n_total.toLocaleString()}</b> transit stops · ${city}`;
+  document.getElementById('stat').innerHTML=`<b>${(g.n_total||g.features.length).toLocaleString()}</b> transit stops · ${city}`;
  }catch(e){ document.getElementById('stat').textContent='stops unavailable'; }
- if(city==='boston'){ liveVehicles(); liveTimer=setInterval(liveVehicles,15000); }
+ if(LIVE_CITIES[city]){ liveSnapshot(city); liveTimer=setInterval(()=>liveSnapshot(city),20000); }
+ else document.getElementById('livek').textContent='live vehicles not available for this city yet';
 }
-async function liveVehicles(){
+async function liveSnapshot(city){
  try{
-  const r=await fetch('https://api-v3.mbta.com/vehicles?include=route&page%5Blimit%5D=1000'); const j=await r.json();
-  const rt={}; (j.included||[]).forEach(x=>{if(x.type==='route')rt[x.id]=x.attributes.type;});
-  const feats=(j.data||[]).filter(v=>v.attributes.latitude).map(v=>{
-   const a=v.attributes; const tp=rt[v.relationships?.route?.data?.id]||3;
-   return {type:'Feature',geometry:{type:'Point',coordinates:[a.longitude,a.latitude]},properties:{color:TYPE[tp]||'#667085'}};});
+  const j=await (await fetch(LIVE_BASE+city+'_live.json?t='+Date.now())).json();
+  if(city!==liveCity) return;                         // city switched mid-fetch
+  const feats=(j.vehicles||[]).map(c=>({type:'Feature',geometry:{type:'Point',coordinates:c},properties:{color:'#00843D'}}));
   map.getSource('veh').setData({type:'FeatureCollection',features:feats});
-  document.getElementById('livek').innerHTML=`<span class=dot></span><b>${feats.length}</b> vehicles live (15s) · ${new Date().toLocaleTimeString()}`;
- }catch(e){ document.getElementById('livek').textContent='live feed rate-limited — retrying'; }
+  const age=Math.max(0,Math.round(Date.now()/1000-(j.updated||0)));
+  document.getElementById('livek').innerHTML=`<span class=dot></span><b>${j.n}</b> vehicles live · ${j.source} · updated ${age}s ago`;
+ }catch(e){ document.getElementById('livek').textContent='live feed unavailable — retrying'; }
 }
 </script></body></html>

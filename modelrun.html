@@ -52,12 +52,22 @@ async function load(){
    ${csteps.map(x=>`<div class=step>  i${x.i}  calib=${x.calib}  → ${x.transit_pct}%</div>`).join('')}
    <div style="margin-top:8px">post: <b class=ok>β=${c.post.beta.toFixed(4)} · calib=${c.post.calib.toFixed(3)}</b> → achieved ${c.achieved.avg_trip_mi} mi / ${c.achieved.transit_pct}% (targets ${s.mean_work_trip_mi_target} / ${s.transit_share_pct_target})</div>
   </div>
-  <h3>Value &amp; time flow per scenario</h3>
+  ${d.scenarios[0].people_flow!=null?`
+  <h3>People flow · vehicle flow · speed</h3>
   <div class=card>
-   <table><thead><tr><th>scenario</th><th>person-hrs/day</th><th>value moved/day</th><th>Δ time</th><th>Δ value</th></tr></thead>
-   <tbody>${d.scenarios.map(x=>`<tr><td>${x.label}</td><td>${fmt(x.person_hours)}</td><td>$${fmt(x.value_transacted_usd)}</td>
+   <table><thead><tr><th>scenario</th><th>people-trips/day</th><th>cars on road</th><th>transit veh-trips</th><th>eff. car mph</th><th>realized mph</th><th>V/C</th></tr></thead>
+   <tbody>${d.scenarios.map(x=>`<tr><td>${x.label}</td><td>${fmt(x.people_flow)}</td><td>${fmt(x.vehicle_flow_cars)}</td>
+     <td>${fmt(x.transit_vehicle_trips)}</td><td>${x.eff_car_mph}</td><td>${x.realized_mph}</td><td>${x.voc}</td></tr>`).join('')}</tbody></table>
+   <div class=sub style="margin-top:6px">People flow = person-trips. Vehicle flow converts auto trips → cars-on-road (occupancy) and riders → transit vehicle-trips. <b>Speed is handled in an alternative manner</b>: not a flat input but congestion-adjusted (BPR volume/capacity — more cars → slower "eff. car mph") and the "realized mph" that emerges as person-miles ÷ person-hours. Both shift as the city grows.</div>
+  </div>`:''}
+  <h3>Aggregated time &amp; value moved</h3>
+  <div class=card>
+   <table><thead><tr><th>scenario</th><th>person-hrs/day</th>${d.scenarios[0].person_hours_car!=null?'<th>car hrs</th><th>transit hrs</th>':''}<th>value moved/day</th><th>Δ cars</th><th>Δ speed</th><th>Δ time</th><th>Δ value</th></tr></thead>
+   <tbody>${d.scenarios.map(x=>`<tr><td>${x.label}</td><td>${fmt(x.person_hours)}</td>${x.person_hours_car!=null?`<td>${fmt(x.person_hours_car)}</td><td>${fmt(x.person_hours_transit)}</td>`:''}<td>$${fmt(x.value_transacted_usd)}</td>
+     <td>${x.dveh_vs_base!=null?(x.dveh_vs_base>=0?'+':'')+fmt(x.dveh_vs_base):'—'}</td>
+     <td>${x.dspeed_vs_base!=null?(x.dspeed_vs_base>=0?'+':'')+x.dspeed_vs_base:'—'}</td>
      <td>${x.dhours_vs_base>=0?'+':''}${fmt(x.dhours_vs_base)}</td><td>${x.dvalue_vs_base>=0?'+$':'-$'}${fmt(Math.abs(x.dvalue_vs_base))}</td></tr>`).join('')}</tbody></table>
-   <div class=sub style="margin-top:6px">"People as vehicles of value" — each work trip carries labour value to a job; Δ vs the base year shows value moved and time friction added/removed by each scenario. Illustrative VOT/wage (editable above).</div>
+   <div class=sub style="margin-top:6px">"People as vehicles of value" — each work trip carries labour value to a job. Δ vs the base year shows the cars growth adds to the road, the speed lost to congestion, the time friction, and the value moved. Illustrative VOT/wage/occupancy (editable above).</div>
   </div>`;
 }
 </script></body></html>

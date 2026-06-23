@@ -64,12 +64,13 @@
 <script>
 const NUM={income_k:'Income $k',commute_mi:'Commute mi',transport:'Transport $/yr',cost_burden_pct:'Cost burden %',
  transit_access_pct:'Transit access %',c_car_work:'Car→work $/yr',c_car_own:'Car own $/yr'};
-const CAT={mode:'Commute mode',hh_type:'Household',age:'Age',has_car:'Car access'};
+const CAT={mode:'Commute mode',hh_type:'Household',age:'Age',has_car:'Car access',drives:'Drives to work'};
 const LBL={true:'has car',false:'no car'};
+const DRV={true:'drives',false:'car-pool / walk'};
 const COL={A:'#00695C',B:'#E8833A'};
 let AG=[], ext={}, sets={A:{num:{},cat:{}},B:{num:{},cat:{}}}, active='A', compare=false;
 let listA=[], listB=[];
-const disp=(v,val)=>v==='has_car'?LBL[val]:val;
+const disp=(v,val)=>v==='has_car'?LBL[val]:v==='drives'?DRV[val]:val;
 
 function inSet(a,s){
  for(const v in s.num){const [lo,hi]=s.num[v]; if(a[v]<lo||a[v]>hi)return false;}

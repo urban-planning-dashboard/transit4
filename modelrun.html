@@ -1,0 +1,63 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · model run</title>
+<style>
+ :root{--teal:#00695C;--line:#e6ebe9;--muted:#667085;--bg:#f6faf9}
+ *{box-sizing:border-box} body{margin:0;font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c;background:var(--bg)}
+ .wrap{max-width:760px;margin:0 auto;padding:16px}
+ h2{font-size:16px;margin:0 0 2px;color:var(--teal)} h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:16px 0 6px}
+ .sub{color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:8px}
+ select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px}
+ .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:10px}
+ table{width:100%;border-collapse:collapse;font-size:12.5px} td,th{padding:5px 7px;border-top:1px solid var(--line);text-align:right} td:first-child,th:first-child{text-align:left}
+ thead th{border:0;color:var(--muted);font-weight:500}
+ .kv{display:flex;flex-wrap:wrap;gap:6px} .kv span{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:11.5px}
+ .ok{color:#1b7a4b;font-weight:700} .bar{height:6px;background:#e7f4ed;border-radius:3px;overflow:hidden;margin-top:3px} .bar>div{height:6px;background:var(--teal)}
+ .step{font:11px ui-monospace,Menlo,monospace;color:#456}
+</style></head><body>
+<div class=wrap>
+ <h2>Model run — calibration &amp; value/time flow</h2>
+ <div class=sub>How the model calibrated this city, and the value + time it moves. The trip distribution is a doubly-constrained gravity (Furness/IPF); the steps show it converging to the observed targets. Coefficients are editable (pre-calibration settings).</div>
+ <select id=city></select>
+ <div id=out></div>
+</div>
+<script>
+const CITIES=[["boston","Boston"],["chicago","Chicago"],["seattle","Seattle"],["toronto","Toronto"],["glasgow","Glasgow"]];
+const sel=document.getElementById('city');
+sel.innerHTML=CITIES.map(([v,n])=>`<option value=${v}>${n}</option>`).join('');
+sel.onchange=load; load();
+function fmt(n){return Math.round(n).toLocaleString();}
+async function load(){
+ const o=document.getElementById('out');
+ try{ var d=await (await fetch(sel.value+'_runreport.json?t='+Date.now())).json(); }
+ catch(e){ o.innerHTML='<div class=card>run report not found</div>'; return; }
+ const s=d.settings, c=d.calibration;
+ const bsteps=c.steps.beta, csteps=c.steps.calib;
+ o.innerHTML=`
+  <h3>Pre-calibration settings (editable)</h3>
+  <div class="card kv">
+   <span>trip-length target: <b>${s.mean_work_trip_mi_target} mi</b></span>
+   <span>transit-share target: <b>${s.transit_share_pct_target}%</b></span>
+   <span>value of time: <b>$${s.value_of_time_per_hr}/hr</b></span>
+   <span>wage/work-trip: <b>$${s.wage_value_per_work_trip}</b></span>
+   <span>car ${s.car_speed_mph} / transit ${s.transit_speed_mph} mph</span>
+   <span>tolerance ±${s.tolerance_pct}%</span>
+  </div>
+  <h3>Calibration — pre → steps → post</h3>
+  <div class=card>
+   <div class=sub>${c.method}</div>
+   <div class=step>β solve → mean trip length (target ${s.mean_work_trip_mi_target} mi):</div>
+   ${bsteps.map(x=>`<div class=step>  i${x.i}  β=${x.beta}  → ${x.avg_trip_mi} mi</div>`).join('')}
+   <div class=step style="margin-top:6px">calib solve → transit share (target ${s.transit_share_pct_target}%):</div>
+   ${csteps.map(x=>`<div class=step>  i${x.i}  calib=${x.calib}  → ${x.transit_pct}%</div>`).join('')}
+   <div style="margin-top:8px">post: <b class=ok>β=${c.post.beta.toFixed(4)} · calib=${c.post.calib.toFixed(3)}</b> → achieved ${c.achieved.avg_trip_mi} mi / ${c.achieved.transit_pct}% (targets ${s.mean_work_trip_mi_target} / ${s.transit_share_pct_target})</div>
+  </div>
+  <h3>Value &amp; time flow per scenario</h3>
+  <div class=card>
+   <table><thead><tr><th>scenario</th><th>person-hrs/day</th><th>value moved/day</th><th>Δ time</th><th>Δ value</th></tr></thead>
+   <tbody>${d.scenarios.map(x=>`<tr><td>${x.label}</td><td>${fmt(x.person_hours)}</td><td>$${fmt(x.value_transacted_usd)}</td>
+     <td>${x.dhours_vs_base>=0?'+':''}${fmt(x.dhours_vs_base)}</td><td>${x.dvalue_vs_base>=0?'+$':'-$'}${fmt(Math.abs(x.dvalue_vs_base))}</td></tr>`).join('')}</tbody></table>
+   <div class=sub style="margin-top:6px">"People as vehicles of value" — each work trip carries labour value to a job; Δ vs the base year shows value moved and time friction added/removed by each scenario. Illustrative VOT/wage (editable above).</div>
+  </div>`;
+}
+</script></body></html>

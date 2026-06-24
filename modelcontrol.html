@@ -46,7 +46,7 @@ const BASE='https://167.233.64.97/model';
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString();
 const CITIES=[["boston","Boston"],["chicago","Chicago"],["seattle","Seattle"],["toronto","Toronto"],["glasgow","Glasgow"]];
-let REPORT=null, SETTINGS=null, QUEUE=[], RESULTS=[], FORGE=false, PICKMETHOD='ipf';
+let REPORT=null, SETTINGS=null, QUEUE=[], RESULTS=[], FORGE=false, PICKMETHOD={dist:'ipf',mode:'scalar'};
 
 $('city').innerHTML=CITIES.map(([v,n])=>`<option value=${v}>${n}</option>`).join('');
 $('city').onchange=load;
@@ -76,7 +76,7 @@ async function load(){
  try{ REPORT=await (await fetch(c+'_runreport.json?t='+Date.now())).json(); }
  catch(e){ $('t-data').innerHTML='<div class=card>run report not found for '+c+'</div>'; return; }
  SETTINGS=Object.assign({}, REPORT.settings);
- QUEUE=[]; RESULTS=[]; PICKMETHOD=(REPORT.methods[0]||{}).method||'ipf';
+ QUEUE=[]; RESULTS=[]; const m0=REPORT.methods[0]||{}; PICKMETHOD={dist:m0.dist_method||'ipf',mode:m0.mode_method||'scalar'};
  renderData(); renderRun(); renderFlow(); renderEquity();
 }
 
@@ -128,7 +128,7 @@ function setIn(k,lab){ return `<div><label>${lab}</label><input id=set_${k} valu
 function setVal(k,v){ SETTINGS[k]=parseFloat(v); renderFlow(); if(!$('t-run').classList.contains('hide')) renderRunResults(); }
 function resetSettings(){ SETTINGS=Object.assign({},REPORT.settings); renderData(); renderFlow(); }
 let PICK=0;
-function pickMethod(i){ PICK=i; PICKMETHOD=REPORT.methods[i].method; document.querySelectorAll('#t-data tr.pick').forEach((r,j)=>r.classList.toggle('on',j===i));
+function pickMethod(i){ PICK=i; PICKMETHOD={dist:REPORT.methods[i].dist_method,mode:REPORT.methods[i].mode_method}; document.querySelectorAll('#t-data tr.pick').forEach((r,j)=>r.classList.toggle('on',j===i));
  const m=REPORT.methods[i]; $('run_beta')&&($('run_beta').value=m.beta); $('run_calib')&&($('run_calib').value=m.calib); }
 
 // ===== TAB 2: run & queue (live on forge) =====
@@ -163,7 +163,7 @@ function renderQueue(){
 function deq(i){ QUEUE.splice(i,1); renderQueue(); }
 async function postScenario(r){
  const resp=await fetch(BASE+'/scenario',{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({year:r.year,beta:r.beta,transit_calib:r.calib,top_corridors:r.top,method:PICKMETHOD})});
+  body:JSON.stringify({year:r.year,beta:r.beta,transit_calib:r.calib,top_corridors:r.top,method:PICKMETHOD.dist,mode_method:PICKMETHOD.mode})});
  return await resp.json();
 }
 async function runOne(){

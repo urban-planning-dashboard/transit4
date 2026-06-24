@@ -34,23 +34,25 @@
   <button data-t=data class=on>Data &amp; calibration</button>
   <button data-t=run>Run &amp; queue</button>
   <button data-t=flow>Flow · congestion · value</button>
+  <button data-t=equity>Cost–benefit &amp; equity</button>
  </nav>
  <div id=t-data></div>
  <div id=t-run class=hide></div>
  <div id=t-flow class=hide></div>
+ <div id=t-equity class=hide></div>
 </div>
 <script>
 const BASE='https://167.233.64.97/model';
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString();
 const CITIES=[["boston","Boston"],["chicago","Chicago"],["seattle","Seattle"],["toronto","Toronto"],["glasgow","Glasgow"]];
-let REPORT=null, SETTINGS=null, QUEUE=[], RESULTS=[], FORGE=false;
+let REPORT=null, SETTINGS=null, QUEUE=[], RESULTS=[], FORGE=false, PICKMETHOD='ipf';
 
 $('city').innerHTML=CITIES.map(([v,n])=>`<option value=${v}>${n}</option>`).join('');
 $('city').onchange=load;
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
- ['data','run','flow'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
+ ['data','run','flow','equity'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
 });
 
 // forge health
@@ -74,8 +76,8 @@ async function load(){
  try{ REPORT=await (await fetch(c+'_runreport.json?t='+Date.now())).json(); }
  catch(e){ $('t-data').innerHTML='<div class=card>run report not found for '+c+'</div>'; return; }
  SETTINGS=Object.assign({}, REPORT.settings);
- QUEUE=[]; RESULTS=[];
- renderData(); renderRun(); renderFlow();
+ QUEUE=[]; RESULTS=[]; PICKMETHOD=(REPORT.methods[0]||{}).method||'ipf';
+ renderData(); renderRun(); renderFlow(); renderEquity();
 }
 
 // ===== TAB 1: data & calibration =====
@@ -126,7 +128,7 @@ function setIn(k,lab){ return `<div><label>${lab}</label><input id=set_${k} valu
 function setVal(k,v){ SETTINGS[k]=parseFloat(v); renderFlow(); if(!$('t-run').classList.contains('hide')) renderRunResults(); }
 function resetSettings(){ SETTINGS=Object.assign({},REPORT.settings); renderData(); renderFlow(); }
 let PICK=0;
-function pickMethod(i){ PICK=i; document.querySelectorAll('#t-data tr.pick').forEach((r,j)=>r.classList.toggle('on',j===i));
+function pickMethod(i){ PICK=i; PICKMETHOD=REPORT.methods[i].method; document.querySelectorAll('#t-data tr.pick').forEach((r,j)=>r.classList.toggle('on',j===i));
  const m=REPORT.methods[i]; $('run_beta')&&($('run_beta').value=m.beta); $('run_calib')&&($('run_calib').value=m.calib); }
 
 // ===== TAB 2: run & queue (live on forge) =====
@@ -161,7 +163,7 @@ function renderQueue(){
 function deq(i){ QUEUE.splice(i,1); renderQueue(); }
 async function postScenario(r){
  const resp=await fetch(BASE+'/scenario',{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({year:r.year,beta:r.beta,transit_calib:r.calib,top_corridors:r.top})});
+  body:JSON.stringify({year:r.year,beta:r.beta,transit_calib:r.calib,top_corridors:r.top,method:PICKMETHOD})});
  return await resp.json();
 }
 async function runOne(){
@@ -210,6 +212,35 @@ function renderFlow(){
    <div class=sub style="margin-top:6px">V/C &gt; 1 = over capacity (bottleneck, in orange). First-order proxy capacity until a real road network is wired — roadmap §11.</div>`
    : `<div class=sub>This city is built from OpenStreetMap as a single region, so there are no inter-town corridors yet. City-wide congestion shows on the flow table above; per-corridor assignment needs a multi-town zone system (national-census adapter) or grid-corridor aggregation — roadmap §11.</div>`}
  </div>`;
+}
+
+// ===== TAB 4: cost–benefit & equity =====
+function renderEquity(){
+ const e=REPORT.equity||{};
+ if(!e.best_access){ $('t-equity').innerHTML='<div class=card>'+(e.note||'no equity data')+'</div>'; return; }
+ const tbl=(rows,cols)=>`<table><thead><tr>${cols.map(c=>`<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${c[1](r)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+ const acccols=[['town',r=>r.town],['jobs/worker',r=>r.jobs_per_worker],['transit %',r=>r.transit_pct],['income',r=>r.income_k!=null?'$'+r.income_k+'k':'—']];
+ let inc='';
+ if(e.by_income && e.by_income.length){
+  inc=`<h3>Who the system serves — by income</h3>
+  <div class=card>${tbl(e.by_income,[['tier',r=>r.tier],['median income',r=>'$'+r.median_income_k+'k'],['transit %',r=>r.avg_transit_pct],['jobs/worker',r=>r.avg_jobs_per_worker],['benefit share · flat',r=>r.benefit_share_flat_pct+'%'],['· wage-weighted',r=>r.benefit_share_wage_pct+'%']])}
+   <div class=sub style="margin-top:6px"><b>Wealth-neutral vs wage-weighted time.</b> "Flat" values every person's hour equally (the equitable lens you asked for); "wage-weighted" values time by income, the way cost-benefit studies often do. Wage-weighting shifts <b class="pill warn">+${e.wage_distortion_pct} pts</b> of the time-benefit to the highest-income tier — the bias made visible.</div></div>`;
+ } else {
+  inc=`<div class=card><div class=sub>Income-tier equity needs per-town income (ACS) — available for US census cities; this city uses OSM/agency totals, so only access equity shows. National-census adapters are queued (roadmap §5).</div></div>`;
+ }
+ $('t-equity').innerHTML=`
+ <h3>Cost–benefit &amp; equity — who benefits, who suffers</h3>
+ <div class=sub>${e.note||''}</div>
+ ${inc}
+ <div class=row>
+  <div><h3>Best access</h3><div class=card>${tbl(e.best_access,acccols)}</div></div>
+  <div><h3>Worst access (suffers most)</h3><div class=card>${tbl(e.worst_access,acccols)}</div></div>
+ </div>
+ ${e.gainers&&e.gainers.length?`<h3>Across growth — gainers vs losers (Δ jobs-per-worker)</h3>
+ <div class=row>
+  <div><div class=card><table><thead><tr><th>gains opportunity</th><th>Δ jpw</th></tr></thead><tbody>${e.gainers.map(g=>`<tr><td>${g.town}</td><td style="color:var(--ok)">+${g.d_jobs_per_worker}</td></tr>`).join('')}</tbody></table></div></div>
+  <div><div class=card><table><thead><tr><th>loses opportunity</th><th>Δ jpw</th></tr></thead><tbody>${e.losers.map(g=>`<tr><td>${g.town}</td><td style="color:var(--warn)">${g.d_jobs_per_worker}</td></tr>`).join('')}</tbody></table></div></div>
+ </div>`:''}`;
 }
 load();
 </script></body></html>

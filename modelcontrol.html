@@ -46,7 +46,7 @@ const BASE='https://167.233.64.97/model';
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString();
 const CITIES=[["boston","Boston"],["chicago","Chicago"],["seattle","Seattle"],["toronto","Toronto"],["glasgow","Glasgow"]];
-let REPORT=null, SETTINGS=null, QUEUE=[], RESULTS=[], FORGE=false, PICKMETHOD={dist:'ipf',mode:'scalar'};
+let REPORT=null, SETTINGS=null, QUEUE=[], RESULTS=[], FORGE=false, PICKMETHOD={dist:'ipf',mode:'scalar'}, GROWTH=[];
 
 $('city').innerHTML=CITIES.map(([v,n])=>`<option value=${v}>${n}</option>`).join('');
 $('city').onchange=load;
@@ -76,7 +76,7 @@ async function load(){
  try{ REPORT=await (await fetch(c+'_runreport.json?t='+Date.now())).json(); }
  catch(e){ $('t-data').innerHTML='<div class=card>run report not found for '+c+'</div>'; return; }
  SETTINGS=Object.assign({}, REPORT.settings);
- QUEUE=[]; RESULTS=[]; const m0=REPORT.methods[0]||{}; PICKMETHOD={dist:m0.dist_method||'ipf',mode:m0.mode_method||'scalar'};
+ QUEUE=[]; RESULTS=[]; GROWTH=[]; const m0=REPORT.methods[0]||{}; PICKMETHOD={dist:m0.dist_method||'ipf',mode:m0.mode_method||'scalar'};
  renderData(); renderRun(); renderFlow(); renderEquity();
 }
 
@@ -151,11 +151,53 @@ function renderRun(){
   <div class=sub style="margin-top:6px">Runs on forge via the secure proxy; the editable settings re-derive flow/time/value of each result. Distribution on forge is IPF today — full server-side method/settings ship when the updated engine is redeployed (committed).</div>
   <div id=queuebox></div>
  </div>
+
+ <h3>Scenario builder — growth areas</h3>
+ <div class=card>
+  <div class=sub>Model "what if we add housing &amp; jobs here?" — define one or more growth areas (a box + a multiplier, e.g. 1.5 = +50%), then run the impact. The model grows that area's workers + jobs and shows what happens to trips, congestion, speed &amp; value. (Boxes apply to the city forge has loaded.)</div>
+  <div id=growthbox></div>
+  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+   <button class=ghost onclick=addArea()>＋ Add growth area</button>
+   <button onclick=runImpact() id=impactbtn>▶ Run growth impact (vs no-growth baseline)</button>
+  </div>
+ </div>
  <div id=runout></div>`;
- renderQueue();
+ renderQueue(); renderGrowth();
 }
-function curRun(){ return {year:+$('run_year').value, beta:+$('run_beta').value, calib:+$('run_calib').value, top:+$('run_top').value}; }
-function enqueue(){ const r=curRun(); r.label=`${r.year} · β${r.beta} · c${r.calib}`; QUEUE.push(r); renderQueue(); }
+function curRun(){ return {year:+$('run_year').value, beta:+$('run_beta').value, calib:+$('run_calib').value, top:+$('run_top').value, growth:GROWTH.slice()}; }
+function enqueue(){ const r=curRun(); r.label=`${r.year} · β${r.beta} · c${r.calib}${GROWTH.length?' · '+GROWTH.length+' growth':''}`; QUEUE.push(r); renderQueue(); }
+function addArea(){ GROWTH.push({w:-87.74,s:41.85,e:-87.60,n:41.95,factor:1.5}); renderGrowth(); }
+function rmArea(i){ GROWTH.splice(i,1); renderGrowth(); }
+function setArea(i,k,v){ GROWTH[i][k]=+v; }
+function renderGrowth(){
+ $('growthbox').innerHTML = GROWTH.length? GROWTH.map((g,i)=>`<div class=q>
+  ${['w','s','e','n'].map(k=>`<span class=k>${k} <input style="width:84px;display:inline-block" value="${g[k]}" onchange="setArea(${i},'${k}',this.value)"></span>`).join(' ')}
+  <span class=k>×<input style="width:54px;display:inline-block" value="${g.factor}" onchange="setArea(${i},'factor',this.value)"></span>
+  <span class=x onclick=rmArea(${i})>✕</span></div>`).join('') : '<div class=sub>No growth areas — add one to model new development.</div>';
+}
+async function runImpact(){
+ if(!FORGE){ $('runout').innerHTML='<div class=card>forge unreachable</div>'; return; }
+ if(!GROWTH.length){ $('runout').innerHTML='<div class=card>add at least one growth area first</div>'; return; }
+ $('runout').innerHTML='<div class=card>running baseline + growth on forge…</div>';
+ const base=curRun(); base.growth=[];
+ try{
+  const [db,dg]=await Promise.all([postScenario(base), postScenario(curRun())]);
+  const fb=flowOf(db.summary), fg=flowOf(dg.summary);
+  const dpct=(a,b)=>{const v=b-a;return (v>=0?'+':'')+(a?(100*v/a).toFixed(1):'—')+'%';};
+  const row=(lab,a,b,money)=>`<tr><td>${lab}</td><td>${money?'$':''}${fmt(a)}</td><td>${money?'$':''}${fmt(b)}</td><td>${dpct(a,b)}</td></tr>`;
+  $('runout').innerHTML=`<h3>Growth impact — ${GROWTH.length} area(s), baseline vs grown</h3><div class=card>
+   <table><thead><tr><th>metric</th><th>baseline</th><th>with growth</th><th>change</th></tr></thead><tbody>
+   ${row('trips/day',db.summary.total_trips,dg.summary.total_trips)}
+   ${row('transit share %',db.summary.transit_pct,dg.summary.transit_pct)}
+   ${row('people flow',fb.people_flow,fg.people_flow)}
+   ${row('cars on road',fb.vehicle_flow_cars,fg.vehicle_flow_cars)}
+   ${row('effective car mph',fb.eff_car_mph.toFixed(1),fg.eff_car_mph.toFixed(1))}
+   ${row('person-hours/day',fb.person_hours,fg.person_hours)}
+   ${row('value moved/day',fb.value_transacted_usd,fg.value_transacted_usd,true)}
+   </tbody></table>
+   <div class=sub style="margin-top:6px">Adding development grows trips &amp; value but also cars &amp; congestion (speed drops, person-hours rise) — the cost-benefit of growth, live. Tune the boxes/multiplier and re-run.</div></div>`;
+ }catch(e){ $('runout').innerHTML='<div class=card>run failed — '+e+'</div>'; }
+}
 function renderQueue(){
  $('runq')&&($('runq').textContent=`Run queue (${QUEUE.length})`);
  $('queuebox').innerHTML = QUEUE.length? '<h3>Queue</h3>'+QUEUE.map((q,i)=>`<div class=q><span style=flex:1>${i+1}. ${q.label}</span><span class=x onclick=deq(${i})>✕</span></div>`).join('') : '';
@@ -163,7 +205,7 @@ function renderQueue(){
 function deq(i){ QUEUE.splice(i,1); renderQueue(); }
 async function postScenario(r){
  const resp=await fetch(BASE+'/scenario',{method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({year:r.year,beta:r.beta,transit_calib:r.calib,top_corridors:r.top,method:PICKMETHOD.dist,mode_method:PICKMETHOD.mode})});
+  body:JSON.stringify({year:r.year,beta:r.beta,transit_calib:r.calib,top_corridors:r.top,method:PICKMETHOD.dist,mode_method:PICKMETHOD.mode,growth_boxes:r.growth||[]})});
  return await resp.json();
 }
 async function runOne(){

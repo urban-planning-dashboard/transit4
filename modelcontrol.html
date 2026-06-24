@@ -223,7 +223,8 @@ function renderEquity(){
  let inc='';
  if(e.by_income && e.by_income.length){
   inc=`<h3>Who the system serves — by income</h3>
-  <div class=card>${tbl(e.by_income,[['tier',r=>r.tier],['median income',r=>'$'+r.median_income_k+'k'],['transit job-access',r=>r.avg_transit_job_access!=null?fmt(r.avg_transit_job_access):'—'],['transit %',r=>r.avg_transit_pct],['jobs/worker',r=>r.avg_jobs_per_worker],['benefit · flat',r=>r.benefit_share_flat_pct+'%'],['· wage',r=>r.benefit_share_wage_pct+'%']])}
+  ${e.income_note?`<div class=sub>${e.income_note}</div>`:''}
+  <div class=card>${tbl(e.by_income,[['tier',r=>r.tier],['median income',r=>'$'+r.median_income_k+'k'],['transit job-access',r=>r.avg_transit_job_access!=null?fmt(r.avg_transit_job_access):'—'],['transit %',r=>r.avg_transit_pct!=null?r.avg_transit_pct:'—'],['jobs/worker',r=>r.avg_jobs_per_worker],['benefit · flat',r=>r.benefit_share_flat_pct+'%'],['· wage',r=>r.benefit_share_wage_pct+'%']])}
    <div class=sub style="margin-top:6px"><b>Wealth-neutral vs wage-weighted time.</b> "Flat" values every person's hour equally (the equitable lens you asked for); "wage-weighted" values time by income, the way cost-benefit studies often do. Wage-weighting shifts <b class="pill warn">+${e.wage_distortion_pct} pts</b> of the time-benefit to the highest-income tier — the bias made visible.</div></div>`;
  } else {
   inc=`<div class=card><div class=sub>Income-tier equity needs per-town income (ACS) — available for US census cities; this city uses OSM/agency totals, so only access equity shows. National-census adapters are queued (roadmap §5).</div></div>`;

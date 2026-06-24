@@ -248,9 +248,9 @@ function renderFlow(){
 
  <h3>Traffic assignment — congested corridors ${cong&&cong.top.length?'':'<span class="pill warn">single-region (OSM grid) — city-wide only</span>'}</h3>
  <div class=card>
-  ${cong&&cong.top.length? `<div class=sub>Per-corridor car flow on a BPR curve (capacity ${fmt(cong.corridor_capacity_veh_per_day)} veh/day, editable). ${cong.note}</div>
-   <table><thead><tr><th>corridor</th><th>cars</th><th>mi</th><th>V/C</th><th>eff mph</th><th>+min</th></tr></thead>
-   <tbody>${cong.top.map(r=>`<tr><td>${r.corridor}</td><td>${fmt(r.cars)}</td><td>${r.dist_mi}</td><td>${r.voc>1?'<b style=color:var(--warn)>'+r.voc+'</b>':r.voc}</td><td>${r.eff_mph}</td><td>${r.delay_min}</td></tr>`).join('')}</tbody></table>
+  ${cong&&cong.top.length? `<div class=sub>${cong.road_network&&cong.road_network!=='none (flat proxy capacity)'?'<b class=pill>real OSM road network</b> ':''}Per-corridor car flow on a BPR curve. ${cong.note}</div>
+   <table><thead><tr><th>corridor</th><th>cars</th><th>capacity</th><th>mi</th><th>V/C</th><th>eff mph</th><th>+min</th></tr></thead>
+   <tbody>${cong.top.map(r=>`<tr><td>${r.corridor}</td><td>${fmt(r.cars)}</td><td>${r.capacity!=null?fmt(r.capacity):'—'}</td><td>${r.dist_mi}</td><td>${r.voc>1?'<b style=color:var(--warn)>'+r.voc+'</b>':r.voc}</td><td>${r.eff_mph}</td><td>${r.delay_min}</td></tr>`).join('')}</tbody></table>
    <div class=sub style="margin-top:6px">V/C &gt; 1 = over capacity (bottleneck, in orange). First-order proxy capacity until a real road network is wired — roadmap §11.</div>`
    : `<div class=sub>This city is built from OpenStreetMap as a single region, so there are no inter-town corridors yet. City-wide congestion shows on the flow table above; per-corridor assignment needs a multi-town zone system (national-census adapter) or grid-corridor aggregation — roadmap §11.</div>`}
  </div>`;

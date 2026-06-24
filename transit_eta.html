@@ -148,12 +148,21 @@ async function gtfs(){ const c=CITIES[CITY]; if(!GIDX) GIDX=await gget(c.base+'/
  if(!near.length) return {stops:[],routes:{},warn:'No stations within '+RADIUS+' m — widen the radius.'};
  const keys=new Set(near.map(s=>Math.floor(s.lat/cell)+'_'+Math.floor(s.lon/cell)));
  await Promise.all([...keys].map(async k=>{ if(!GCELLS[k]) GCELLS[k]=await gget(c.base+'/cells/'+k+'.json').catch(()=>({})); }));
- const now=citySec(c.tz), routes={};
+ // LIVE OVERLAY: GTFS-realtime TripUpdates (if the city has a reachable feed)
+ let TU=null; try{ TU=(await fetch(c.base+'/tripupdates.json').then(r=>r.ok?r.json():null))?.trips; }catch(e){}
+ const now=citySec(c.tz), nowU=Date.now()/1000, midnight=nowU-now, routes={};
  near.forEach(s=>{ const k=Math.floor(s.lat/cell)+'_'+Math.floor(s.lon/cell), cd=(GCELLS[k]||{})[s.id]||[];
   s.walk=Math.max(1,Math.round(s.dist/80));
-  s.deps=cd.filter(d=>modeTypes().includes(d[4]) && d[0]>=now).sort((a,b)=>a[0]-b[0]).slice(0,4).map(d=>{
-   routes[d[1]]=1; return {route:d[1],color:RTCOL[d[4]]||'00695C',tcol:'fff',headsign:d[2],in_min:Math.round((d[0]-now)/60),live:false,delta:null}; }); });
- const warn=`Scheduled times (${GIDX.date}) — not live. May not reflect delays; go online for the most accurate data.`+(OFFLINE?' · cached on this device':'');
+  s.deps=cd.filter(d=>modeTypes().includes(d[4])).map(d=>{
+   let in_min=Math.round((d[0]-now)/60), live=false, delta=null;
+   const lu=TU&&TU[d[5]]&&TU[d[5]][s.id];                 // live predicted unix time for this trip+stop
+   if(lu){ in_min=Math.round((lu-nowU)/60); delta=Math.round((lu-(midnight+d[0]))/60); live=true; }
+   else if(d[0]<now) return null;                          // scheduled & already past
+   if(in_min<-1) return null;
+   routes[d[1]]=1; return {route:d[1],color:RTCOL[d[4]]||'00695C',tcol:'fff',headsign:d[2],in_min,live,delta}; })
+   .filter(Boolean).sort((a,b)=>a.in_min-b.in_min).slice(0,4); });
+ const warn=TU?`Live where the agency reports it (${GIDX.date} schedule otherwise).`
+   :`Scheduled times (${GIDX.date}) — not live. May not reflect delays; go online for the most accurate data.`+(OFFLINE?' · cached on this device':'');
  return {stops:near.filter(s=>s.deps.length),routes,vehicles:[],warn};
 }
 async function cacheCity(){ const c=CITIES[CITY]; try{ const idx=await gget(c.base+'/stops.json'); $('offbtn').textContent='offline: caching…';

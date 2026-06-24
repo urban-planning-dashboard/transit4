@@ -45,7 +45,7 @@
 const BASE='https://167.233.64.97/model';
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString();
-const CITIES=[["boston","Boston"],["chicago","Chicago"],["seattle","Seattle"],["toronto","Toronto"],["glasgow","Glasgow"]];
+const CITIES=[["boston","Boston"],["chicago","Chicago"],["seattle","Seattle"],["toronto","Toronto"],["glasgow","Glasgow"],["melbourne","Melbourne"]];
 let REPORT=null, SETTINGS=null, QUEUE=[], RESULTS=[], FORGE=false, PICKMETHOD={dist:'ipf',mode:'scalar'}, GROWTH=[];
 
 $('city').innerHTML=CITIES.map(([v,n])=>`<option value=${v}>${n}</option>`).join('');

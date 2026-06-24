@@ -22,7 +22,7 @@
  <div id=out></div>
 </div>
 <script>
-const CITIES=[["boston","Boston"],["chicago","Chicago"],["seattle","Seattle"],["toronto","Toronto"],["glasgow","Glasgow"]];
+const CITIES=[["boston","Boston"],["chicago","Chicago"],["seattle","Seattle"],["toronto","Toronto"],["glasgow","Glasgow"],["melbourne","Melbourne"]];
 const sel=document.getElementById('city');
 sel.innerHTML=CITIES.map(([v,n])=>`<option value=${v}>${n}</option>`).join('');
 sel.onchange=load; load();

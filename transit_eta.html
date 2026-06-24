@@ -7,23 +7,28 @@
  *{box-sizing:border-box} html,body{margin:0;height:100%} body{font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c;background:var(--bg);display:flex;flex-direction:column}
  header{padding:8px 12px;background:var(--teal);color:#fff;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
  header b{font-size:15px} .pill{font-size:11px;background:rgba(255,255,255,.18);padding:2px 8px;border-radius:10px}
+ select{font:inherit;border:0;border-radius:8px;padding:4px 8px;background:rgba(255,255,255,.18);color:#fff}
+ select option{color:#000}
  .wrap{flex:1;min-height:0;display:flex} #map{flex:1;min-width:0} .side{width:340px;max-width:46%;overflow:auto;border-left:1px solid var(--line);background:#fff;padding:10px}
  @media(max-width:680px){.wrap{flex-direction:column}.side{width:auto;max-width:none;border-left:0;border-top:1px solid var(--line);height:46%}}
  .ctl{padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px}
  button{background:var(--teal);color:#fff;border:0;border-radius:8px;padding:7px 12px;font:inherit;font-weight:600;cursor:pointer}
  button.ghost{background:#fff;color:var(--teal);border:1px solid var(--line);font-weight:500;padding:5px 10px;border-radius:14px}
- button.ghost.on{background:var(--teal);color:#fff}
- input[type=range]{vertical-align:middle} label{color:var(--muted)}
+ button.ghost.on{background:var(--teal);color:#fff} label{color:var(--muted)}
  .stop{border-top:1px solid var(--line);padding:8px 0} .stop h4{margin:0 0 4px;font-size:13px} .stop .m{font-size:11px;color:var(--muted)}
  .dep{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px}
  .rt{font-weight:700;color:#fff;border-radius:6px;padding:1px 7px;font-size:11.5px;min-width:30px;text-align:center}
- .eta{margin-left:auto;font-weight:700} .eta.live::after{content:" ●";color:var(--ok)} .small{font-size:11px;color:var(--muted)}
+ .eta{margin-left:auto;font-weight:700} .eta.live::after{content:" ●";color:#7CFC00} .small{font-size:11px;color:var(--muted)}
  .delta.late{color:var(--warn)} .delta.early{color:#2563eb} .delta.ontime{color:var(--ok)}
  .alert{background:#fff4ec;border:1px solid #f3d3b5;color:var(--warn);border-radius:8px;padding:6px 8px;font-size:12px;margin-bottom:8px}
- .veh{background:var(--teal);border-radius:50%;width:11px;height:11px;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+ .sched{background:#eef4f2;border:1px solid var(--line);color:#456;border-radius:8px;padding:6px 8px;font-size:11.5px;margin-bottom:8px}
  .hint{color:var(--muted);font-size:12px;line-height:1.5}
 </style></head><body>
-<header><b>Live ETA</b><span class=pill>Boston · MBTA</span><span style=flex:1></span><span class=pill id=clock></span></header>
+<header><b>Live ETA</b>
+ <select id=city></select>
+ <span class=pill id=mode_pill></span><span style=flex:1></span>
+ <button class=ghost id=offbtn title="cache this city's schedule on your device">offline: off</button>
+ <span class=pill id=clock></span></header>
 <div class=ctl>
  <button id=loc>📍 My location</button>
  <span><label>walk radius</label> <input id=rad type=range min=200 max=1500 step=100 value=600> <span id=radlbl>600 m</span></span>
@@ -33,116 +38,129 @@
   <button class=ghost data-mode=bus>bus</button></span>
  <span id=routebox></span>
 </div>
-<div class=wrap>
- <div id=map></div>
- <div class=side id=side><div class=hint>Tap the map to drop a pin (or use 📍 My location). Stations within your walk radius appear, with the next departures — live where the agency is reporting, with the gap vs schedule. Live vehicles show their route &amp; heading.</div></div>
+<div class=wrap><div id=map></div>
+ <div class=side id=side><div class=hint>Pick a city, tap the map to drop a pin (or 📍), set your walk radius. You'll see nearby stations with next departures — <b>live</b> where the agency reports it (with the gap vs schedule), or the <b>scheduled</b> times where only the timetable is available.</div></div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const API='https://api-v3.mbta.com';
+const MBTA='https://api-v3.mbta.com';
+const CITIES={
+ boston:{name:'Boston · MBTA',backend:'mbta',center:[42.3656,-71.0612],tz:'America/New_York'},
+ toronto:{name:'Toronto · TTC',backend:'gtfs',center:[43.6561,-79.3802],tz:'America/Toronto',base:'gtfs/toronto'}
+};
 const $=id=>document.getElementById(id);
-const map=L.map('map',{zoomControl:true}).setView([42.3656,-71.0612],14);  // North Station-ish
+let CITY='boston', PIN=null, RADIUS=600, MODE='all', ROUTEFILTER=null, OFFLINE=false, timer=null;
+let GIDX=null, GCELLS={};   // gtfs stops index + fetched cells
+const map=L.map('map',{zoomControl:true}).setView(CITIES.boston.center,14);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-let PIN=null, RADIUS=600, MODE='all', ROUTEFILTER=null, layers=L.layerGroup().addTo(map), vehLayer=L.layerGroup().addTo(map), timer=null;
-const fmtClock=()=>new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-setInterval(()=>$('clock').textContent=fmtClock(),1000); $('clock').textContent=fmtClock();
+let layers=L.layerGroup().addTo(map), vehLayer=L.layerGroup().addTo(map), pinMarker=null, radCircle=null;
+const clock=()=>new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+setInterval(()=>$('clock').textContent=clock(),1000); $('clock').textContent=clock();
+$('city').innerHTML=Object.entries(CITIES).map(([k,c])=>`<option value=${k}>${c.name}</option>`).join('');
 
-function modeTypes(){ return MODE==='train'?'0,1,2':MODE==='bus'?'3':'0,1,2,3'; }
-async function api(path){ const r=await fetch(API+path); if(!r.ok) throw new Error(path+' '+r.status); return r.json(); }
-function mins(t){ if(!t) return null; return Math.round((new Date(t)-new Date())/60000); }
-function rel(d){ const m={}; (d.included||[]).forEach(i=>{m[i.type+'/'+i.id]=i}); return m; }
-
-$('rad').oninput=e=>{ RADIUS=+e.target.value; $('radlbl').textContent=RADIUS+' m'; };
-$('rad').onchange=()=>PIN&&refresh();
-$('modes').onclick=e=>{ if(!e.target.dataset.mode) return; MODE=e.target.dataset.mode; ROUTEFILTER=null;
- document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b===e.target)); PIN&&refresh(); };
-$('loc').onclick=()=>{ if(!navigator.geolocation){alert('no geolocation');return;}
- $('loc').textContent='locating…';
- navigator.geolocation.getCurrentPosition(p=>{ setPin([p.coords.latitude,p.coords.longitude]); map.setView(PIN,15); $('loc').textContent='📍 My location'; },
-   ()=>{ $('loc').textContent='📍 My location'; alert('location denied — tap the map to drop a pin'); }); };
-map.on('click',e=>setPin([e.latlng.lat,e.latlng.lng]));
-
-let pinMarker=null, radCircle=null;
-function setPin(ll){ PIN=ll;
- if(pinMarker) map.removeLayer(pinMarker); if(radCircle) map.removeLayer(radCircle);
- pinMarker=L.marker(ll).addTo(map); radCircle=L.circle(ll,{radius:RADIUS,color:'#00695C',weight:1,fillOpacity:.05}).addTo(map);
- refresh(); if(timer) clearInterval(timer); timer=setInterval(refresh,20000); }   // auto-refresh ETAs every 20s
-
-async function refresh(){
- if(!PIN) return;
- if(radCircle){ radCircle.setRadius(RADIUS); radCircle.setLatLng(PIN); }
- const [la,lo]=PIN, degR=(RADIUS/111000).toFixed(4);
- try{
-  const sd=await api(`/stops?filter[latitude]=${la}&filter[longitude]=${lo}&filter[radius]=${degR}&filter[route_type]=${modeTypes()}&page[limit]=25`);
-  const stops=sd.data; if(!stops.length){ $('side').innerHTML='<div class=hint>No stations within '+RADIUS+' m. Widen the radius or move the pin.</div>'; layers.clearLayers(); vehLayer.clearLayers(); return; }
-  const stopIds=stops.map(s=>s.id).join(',');
-  // live predictions, then the SCHEDULED times for those exact trips (for the delta)
-  const pd=await api(`/predictions?filter[stop]=${stopIds}&include=route,trip&sort=arrival_time&page[limit]=80`);
-  const tripIds=[...new Set(pd.data.map(p=>(p.relationships.trip.data||{}).id).filter(Boolean))].slice(0,40);
-  let scd={data:[]};
-  if(tripIds.length) scd=await api(`/schedules?filter[trip]=${tripIds.join(',')}&filter[stop]=${stopIds}&page[limit]=200`).catch(()=>({data:[]}));
-  const R=rel(pd);
-  const sched={}; (scd.data||[]).forEach(s=>{ const tr=s.relationships.trip.data; const k=(tr&&tr.id)+'/'+s.relationships.stop.data.id; const t=s.attributes.arrival_time||s.attributes.departure_time; if(t)sched[k]=t; });
-  // routes present → route filter chips
-  const routes={}; pd.data.forEach(p=>{ const r=R['route/'+p.relationships.route.data.id]; if(r)routes[r.id]=r; });
-  renderRouteChips(routes);
-  renderStops(stops,pd.data,R,sched);
-  renderVehicles(Object.keys(routes));
-  renderAlerts(Object.keys(routes));
- }catch(e){ $('side').innerHTML='<div class=alert>MBTA API error: '+e.message+'</div>'; }
-}
-
-function renderRouteChips(routes){
- const keys=Object.keys(routes); if(keys.length<2){ $('routebox').innerHTML=''; return; }
- $('routebox').innerHTML='<label>route</label> '+`<button class="ghost ${ROUTEFILTER?'':'on'}" onclick="setRoute(null)">all</button> `+
-  keys.slice(0,8).map(id=>`<button class="ghost ${ROUTEFILTER===id?'on':''}" style="border-color:#${routes[id].attributes.color}" onclick="setRoute('${id}')">${routes[id].attributes.short_name||routes[id].id}</button>`).join(' ');
-}
-function setRoute(id){ ROUTEFILTER=id; refresh(); }
-
-function dirName(route,dir){ const dn=route&&route.attributes.direction_names; return dn&&dn[dir]!=null?dn[dir]:(dir===0?'outbound':'inbound'); }
-function renderStops(stops,preds,R,sched){
- layers.clearLayers();
- const byStop={}; stops.forEach(s=>byStop[s.id]={stop:s,deps:[]});
- preds.forEach(p=>{ const sid=p.relationships.stop.data.id; const rid=p.relationships.route.data.id;
-   if(ROUTEFILTER&&rid!==ROUTEFILTER) return;
-   const g=byStop[sid]||byStop[Object.keys(byStop).find(k=>k===sid)]; if(!g) return; g.deps.push(p); });
- let html='';
- stops.forEach(s=>{ const a=s.attributes; L.marker([a.latitude,a.longitude],{icon:L.divIcon({className:'',html:'<div style="background:#00695C;color:#fff;border-radius:50%;width:9px;height:9px;border:2px solid #fff"></div>',iconSize:[13,13]})}).addTo(layers).bindPopup(a.name);
-  const g=byStop[s.id]; const deps=(g.deps||[]).slice(0,4);
-  const dist=Math.round(distM(PIN,[a.latitude,a.longitude])), walk=Math.max(1,Math.round(dist/80));  // ~80 m/min walking
-  html+=`<div class=stop><h4>${a.name}</h4><div class=m>${dist} m · ~${walk} min walk</div>`;
-  if(!deps.length) html+='<div class=small>no upcoming departures'+(ROUTEFILTER?' on this route':'')+'</div>';
-  deps.forEach(p=>{ const r=R['route/'+p.relationships.route.data.id], tr=R['trip/'+(p.relationships.trip.data||{}).id];
-    const m=mins(p.attributes.arrival_time||p.attributes.departure_time); if(m==null||m<0) return;
-    const k=((p.relationships.trip.data||{}).id)+'/'+p.relationships.stop.data.id, sct=sched[k];
-    let dl=''; if(sct){ const dd=Math.round((new Date(p.attributes.arrival_time||p.attributes.departure_time)-new Date(sct))/60000);
-      const cls=dd>=2?'late':dd<=-2?'early':'ontime'; dl=`<span class="small delta ${cls}">${dd>0?'+':''}${dd}m</span>`; }
-    const col=r?r.attributes.color:'888', tcol=r?r.attributes.text_color:'fff';
-    html+=`<div class=dep><span class=rt style="background:#${col};color:#${tcol}">${r?(r.attributes.short_name||r.id):'?'}</span>
-      <span>${tr?tr.attributes.headsign:dirName(r,p.attributes.direction_id)}</span>
-      <span class="eta live">${m===0?'now':m+'m'}</span>${dl}</div>`; });
-  html+='</div>'; });
- $('side').innerHTML=html;
-}
-async function renderVehicles(routeIds){
- vehLayer.clearLayers(); if(!routeIds.length) return;
- const rs=(ROUTEFILTER?[ROUTEFILTER]:routeIds).join(',');
- try{ const vd=await api(`/vehicles?filter[route]=${rs}&include=route&page[limit]=120`); const R=rel(vd);
-  vd.data.forEach(v=>{ const a=v.attributes; if(a.latitude==null)return; const r=R['route/'+v.relationships.route.data.id];
-   const col=r?r.attributes.color:'00695C';
-   const arrow=a.bearing!=null?`<div style="transform:rotate(${a.bearing}deg);font-size:14px;line-height:1">▲</div>`:'●';
-   L.marker([a.latitude,a.longitude],{icon:L.divIcon({className:'',html:`<div title="${r?r.attributes.short_name||r.id:''} ${a.current_status||''}" style="color:#${col}">${arrow}</div>`,iconSize:[16,16]})}).addTo(vehLayer); });
- }catch(e){}
-}
-async function renderAlerts(routeIds){
- if(!routeIds.length) return;
- try{ const ad=await api(`/alerts?filter[route]=${routeIds.join(',')}&filter[severity]=3,4,5,6,7,8,9,10`);
-  if(ad.data&&ad.data.length){ const a=ad.data[0].attributes;
-   const banner='<div class=alert>⚠ '+(a.short_header||a.header||'Service alert').slice(0,140)+(ad.data.length>1?` (+${ad.data.length-1} more)`:'')+'</div>';
-   $('side').innerHTML=banner+$('side').innerHTML; }
- }catch(e){}
-}
+function modeTypes(){ return MODE==='train'?[0,1,2]:MODE==='bus'?[3]:[0,1,2,3]; }
 function distM(a,b){ const R=6371000,dLat=(b[0]-a[0])*Math.PI/180,dLon=(b[1]-a[1])*Math.PI/180,la1=a[0]*Math.PI/180,la2=b[0]*Math.PI/180;
  const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
-function setRadius(){}
+function citySec(tz){ const p=new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}).formatToParts(new Date());
+ const g=k=>+(p.find(x=>x.type===k).value); return g('hour')*3600+g('minute')*60+g('second'); }
+const RTCOL={0:'1b7a4b',1:'c0392b',2:'6d28d9',3:'2563eb'};   // tram/subway/rail/bus colors for GTFS
+
+$('city').onchange=e=>{ CITY=e.target.value; const c=CITIES[CITY]; GIDX=null; GCELLS={}; PIN=null; ROUTEFILTER=null;
+ $('mode_pill').textContent=c.backend==='mbta'?'live predictions':'schedule';
+ map.setView(c.center,14); layers.clearLayers(); vehLayer.clearLayers(); if(pinMarker)map.removeLayer(pinMarker); if(radCircle)map.removeLayer(radCircle);
+ $('side').innerHTML='<div class=hint>Tap the map or use 📍 to drop a pin in '+c.name.split(' · ')[0]+'.</div>'; loadOffline(); };
+$('rad').oninput=e=>{ RADIUS=+e.target.value; $('radlbl').textContent=RADIUS+' m'; };
+$('rad').onchange=()=>PIN&&refresh();
+$('modes').onclick=e=>{ if(!e.target.dataset.mode)return; MODE=e.target.dataset.mode; ROUTEFILTER=null;
+ document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b===e.target)); PIN&&refresh(); };
+$('loc').onclick=()=>{ if(!navigator.geolocation){alert('no geolocation');return;} $('loc').textContent='locating…';
+ navigator.geolocation.getCurrentPosition(p=>{ setPin([p.coords.latitude,p.coords.longitude]); map.setView(PIN,15); $('loc').textContent='📍 My location'; },
+  ()=>{ $('loc').textContent='📍 My location'; alert('location denied — tap the map to drop a pin'); }); };
+$('offbtn').onclick=()=>{ OFFLINE=!OFFLINE; $('offbtn').textContent='offline: '+(OFFLINE?'on':'off'); $('offbtn').classList.toggle('on',OFFLINE);
+ if(OFFLINE&&CITIES[CITY].backend==='gtfs') cacheCity(); };
+map.on('click',e=>setPin([e.latlng.lat,e.latlng.lng]));
+function setPin(ll){ PIN=ll; if(pinMarker)map.removeLayer(pinMarker); if(radCircle)map.removeLayer(radCircle);
+ pinMarker=L.marker(ll).addTo(map); radCircle=L.circle(ll,{radius:RADIUS,color:'#00695C',weight:1,fillOpacity:.05}).addTo(map);
+ refresh(); if(timer)clearInterval(timer); if(CITIES[CITY].backend==='mbta') timer=setInterval(refresh,20000); }
+
+async function refresh(){ if(!PIN)return; if(radCircle){radCircle.setRadius(RADIUS);radCircle.setLatLng(PIN);}
+ try{ const r= CITIES[CITY].backend==='mbta' ? await mbta() : await gtfs();
+  renderRouteChips(r.routes||{}); render(r); }catch(e){ $('side').innerHTML='<div class=alert>'+e.message+'</div>'; } }
+
+// ---------- common render ----------
+function render(r){ layers.clearLayers();
+ let html=''; if(r.warn) html+='<div class=sched>'+r.warn+'</div>'; if(r.alert) html='<div class=alert>⚠ '+r.alert+'</div>'+html;
+ r.stops.forEach(s=>{ L.marker([s.lat,s.lon],{icon:L.divIcon({className:'',html:'<div style="background:#00695C;color:#fff;border-radius:50%;width:9px;height:9px;border:2px solid #fff"></div>',iconSize:[13,13]})}).addTo(layers).bindPopup(s.name);
+  let deps=s.deps; if(ROUTEFILTER) deps=deps.filter(d=>d.route===ROUTEFILTER); deps=deps.slice(0,4);
+  html+=`<div class=stop><h4>${s.name}</h4><div class=m>${s.dist} m · ~${s.walk} min walk</div>`;
+  if(!deps.length) html+='<div class=small>no upcoming departures'+(ROUTEFILTER?' on this route':'')+'</div>';
+  deps.forEach(d=>{ let dl=''; if(d.delta!=null){ const c=d.delta>=2?'late':d.delta<=-2?'early':'ontime'; dl=`<span class="small delta ${c}">${d.delta>0?'+':''}${d.delta}m</span>`; }
+   html+=`<div class=dep><span class=rt style="background:#${d.color};color:#${d.tcol||'fff'}">${d.route}</span><span>${d.headsign||''}</span>
+    <span class="eta ${d.live?'live':''}">${d.in_min<=0?'now':d.in_min+'m'}</span>${dl}</div>`; });
+  html+='</div>'; });
+ $('side').innerHTML=html; renderVehicles(r.vehicles||[]);
+}
+function renderVehicles(vs){ vehLayer.clearLayers(); vs.forEach(v=>{ const arrow=v.bearing!=null?`<div style="transform:rotate(${v.bearing}deg);font-size:14px;line-height:1;color:#${v.color}">▲</div>`:'●';
+ L.marker([v.lat,v.lon],{icon:L.divIcon({className:'',html:`<div title="${v.label||''}">${arrow}</div>`,iconSize:[16,16]})}).addTo(vehLayer); }); }
+function renderRouteChips(routes){ const keys=Object.keys(routes); if(keys.length<2){$('routebox').innerHTML='';return;}
+ $('routebox').innerHTML='<label>route</label> '+`<button class="ghost ${ROUTEFILTER?'':'on'}" onclick="setRoute(null)">all</button> `+
+  keys.slice(0,8).map(id=>`<button class="ghost ${ROUTEFILTER===id?'on':''}" onclick="setRoute('${id}')">${id}</button>`).join(' '); }
+function setRoute(id){ ROUTEFILTER=id; render.lastRoutesAreFresh=false; PIN&&refresh(); }
+
+// ---------- MBTA backend (live) ----------
+async function api(p){ const r=await fetch(MBTA+p); if(!r.ok)throw new Error('MBTA '+r.status); return r.json(); }
+function rel(d){ const m={}; (d.included||[]).forEach(i=>m[i.type+'/'+i.id]=i); return m; }
+function mins(t){ return t?Math.round((new Date(t)-new Date())/60000):null; }
+async function mbta(){ const [la,lo]=PIN, degR=(RADIUS/111000).toFixed(4);
+ const sd=await api(`/stops?filter[latitude]=${la}&filter[longitude]=${lo}&filter[radius]=${degR}&filter[route_type]=${modeTypes().join(',')}&page[limit]=25`);
+ if(!sd.data.length) return {stops:[],routes:{},warn:'No stations within '+RADIUS+' m — widen the radius.'};
+ const ids=sd.data.map(s=>s.id).join(',');
+ const pd=await api(`/predictions?filter[stop]=${ids}&include=route,trip&sort=arrival_time&page[limit]=80`); const R=rel(pd);
+ const tripIds=[...new Set(pd.data.map(p=>(p.relationships.trip.data||{}).id).filter(Boolean))].slice(0,40);
+ let sched={}; if(tripIds.length){ const sc=await api(`/schedules?filter[trip]=${tripIds.join(',')}&filter[stop]=${ids}&page[limit]=200`).catch(()=>({data:[]}));
+  (sc.data||[]).forEach(s=>{ const tr=s.relationships.trip.data; if(tr){ const t=s.attributes.arrival_time||s.attributes.departure_time; if(t) sched[tr.id+'/'+s.relationships.stop.data.id]=t; } }); }
+ const routes={}, byStop={}; sd.data.forEach(s=>byStop[s.id]={name:s.attributes.name,lat:s.attributes.latitude,lon:s.attributes.longitude,
+  dist:Math.round(distM(PIN,[s.attributes.latitude,s.attributes.longitude])),walk:Math.max(1,Math.round(distM(PIN,[s.attributes.latitude,s.attributes.longitude])/80)),deps:[]});
+ pd.data.forEach(p=>{ const m=mins(p.attributes.arrival_time||p.attributes.departure_time); if(m==null||m<0)return;
+  const ro=R['route/'+p.relationships.route.data.id], tr=R['trip/'+(p.relationships.trip.data||{}).id], g=byStop[p.relationships.stop.data.id]; if(!g)return;
+  const k=((p.relationships.trip.data||{}).id)+'/'+p.relationships.stop.data.id, sct=sched[k];
+  let delta=null; if(sct) delta=Math.round((new Date(p.attributes.arrival_time||p.attributes.departure_time)-new Date(sct))/60000);
+  const name=ro?(ro.attributes.short_name||ro.id):'?'; routes[name]=1;
+  g.deps.push({route:name,color:ro?ro.attributes.color:'888',tcol:ro?ro.attributes.text_color:'fff',headsign:tr?tr.attributes.headsign:'',in_min:m,live:true,delta}); });
+ const stops=Object.values(byStop).filter(s=>s.deps.length).sort((a,b)=>a.dist-b.dist);
+ const veh=await mbtaVehicles(Object.keys(routes)); const alert=await mbtaAlert(Object.keys(routes));
+ return {stops,routes,vehicles:veh,alert};
+}
+async function mbtaVehicles(rs){ if(!rs.length)return[]; try{ const vd=await api(`/vehicles?filter[route]=${(ROUTEFILTER?[ROUTEFILTER]:rs).join(',')}&include=route&page[limit]=120`); const R=rel(vd);
+ return vd.data.filter(v=>v.attributes.latitude!=null).map(v=>{ const ro=R['route/'+v.relationships.route.data.id];
+  return {lat:v.attributes.latitude,lon:v.attributes.longitude,bearing:v.attributes.bearing,color:ro?ro.attributes.color:'00695C',label:(ro?ro.attributes.short_name||ro.id:'')+' '+(v.attributes.current_status||'')}; }); }catch(e){return[];} }
+async function mbtaAlert(rs){ if(!rs.length)return null; try{ const ad=await api(`/alerts?filter[route]=${rs.join(',')}&filter[severity]=3,4,5,6,7,8,9,10`);
+ return ad.data&&ad.data.length?(ad.data[0].attributes.short_header||ad.data[0].attributes.header||'').slice(0,140)+(ad.data.length>1?` (+${ad.data.length-1} more)`:''):null; }catch(e){return null;} }
+
+// ---------- GTFS backend (scheduled, offline-cacheable) ----------
+async function gget(url){ if(OFFLINE){ const c=localStorage.getItem('g:'+CITY+':'+url); if(c)return JSON.parse(c); }
+ const r=await fetch(url); if(!r.ok)throw new Error('GTFS '+r.status+' '+url); const j=await r.json();
+ if(OFFLINE) try{localStorage.setItem('g:'+CITY+':'+url,JSON.stringify(j));}catch(e){} return j; }
+async function gtfs(){ const c=CITIES[CITY]; if(!GIDX) GIDX=await gget(c.base+'/stops.json');
+ const [la,lo]=PIN, cell=GIDX.cell_deg;
+ const near=GIDX.stops.map(s=>({id:s[0],lat:s[1],lon:s[2],name:s[3],dist:Math.round(distM(PIN,[s[1],s[2]]))}))
+   .filter(s=>s.dist<=RADIUS).sort((a,b)=>a.dist-b.dist).slice(0,25);
+ if(!near.length) return {stops:[],routes:{},warn:'No stations within '+RADIUS+' m — widen the radius.'};
+ const keys=new Set(near.map(s=>Math.floor(s.lat/cell)+'_'+Math.floor(s.lon/cell)));
+ await Promise.all([...keys].map(async k=>{ if(!GCELLS[k]) GCELLS[k]=await gget(c.base+'/cells/'+k+'.json').catch(()=>({})); }));
+ const now=citySec(c.tz), routes={};
+ near.forEach(s=>{ const k=Math.floor(s.lat/cell)+'_'+Math.floor(s.lon/cell), cd=(GCELLS[k]||{})[s.id]||[];
+  s.walk=Math.max(1,Math.round(s.dist/80));
+  s.deps=cd.filter(d=>modeTypes().includes(d[4]) && d[0]>=now).sort((a,b)=>a[0]-b[0]).slice(0,4).map(d=>{
+   routes[d[1]]=1; return {route:d[1],color:RTCOL[d[4]]||'00695C',tcol:'fff',headsign:d[2],in_min:Math.round((d[0]-now)/60),live:false,delta:null}; }); });
+ const warn=`Scheduled times (${GIDX.date}) — not live. May not reflect delays; go online for the most accurate data.`+(OFFLINE?' · cached on this device':'');
+ return {stops:near.filter(s=>s.deps.length),routes,vehicles:[],warn};
+}
+async function cacheCity(){ const c=CITIES[CITY]; try{ const idx=await gget(c.base+'/stops.json'); $('offbtn').textContent='offline: caching…';
+ // cache the cells around the current pin (or all if small)
+ const cells=new Set(); idx.stops.forEach(s=>cells.add(Math.floor(s[1]/idx.cell_deg)+'_'+Math.floor(s[2]/idx.cell_deg)));
+ let n=0; for(const k of cells){ try{ await gget(c.base+'/cells/'+k+'.json'); n++; }catch(e){} }
+ $('offbtn').textContent='offline: on'; alert(`Cached ${idx.n} stops / ${n} areas for ${c.name.split(' · ')[0]} (${idx.date}). Works offline; schedule only — go online for live.`); }catch(e){ alert('cache failed: '+e.message); } }
+function loadOffline(){ OFFLINE=false; $('offbtn').textContent='offline: off'; $('offbtn').classList.remove('on'); }
+$('mode_pill').textContent='live predictions';
 </script></body></html>

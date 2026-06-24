@@ -1,0 +1,215 @@
+<!doctype html><html><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>transit4 · model control</title>
+<style>
+ :root{--teal:#00695C;--line:#e6ebe9;--muted:#667085;--bg:#f6faf9;--warn:#b54708;--ok:#1b7a4b}
+ *{box-sizing:border-box} body{margin:0;font:14px -apple-system,Segoe UI,Roboto,sans-serif;color:#14302c;background:var(--bg)}
+ .wrap{max-width:860px;margin:0 auto;padding:14px}
+ h2{font-size:16px;margin:0 0 2px;color:var(--teal)} h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:16px 0 6px}
+ .sub{color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:8px}
+ .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#bbb;margin-right:5px}
+ .dot.on{background:var(--ok);animation:p 1.5s infinite} @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+ .row{display:flex;gap:10px;flex-wrap:wrap} .row>div{flex:1;min-width:110px}
+ select,input{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;width:100%}
+ label{display:block;font-size:11px;color:var(--muted);margin:6px 0 2px}
+ .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:10px}
+ button{background:var(--teal);color:#fff;border:0;border-radius:9px;padding:9px 15px;font:inherit;font-weight:600;cursor:pointer}
+ button.ghost{background:#fff;color:var(--teal);border:1px solid var(--line)}
+ nav{display:flex;gap:4px;margin:6px 0 10px;flex-wrap:wrap}
+ nav button{background:none;border:1px solid var(--line);color:var(--muted);font-weight:500;padding:6px 11px;font-size:13px}
+ nav button.on{background:var(--teal);color:#fff;border-color:var(--teal)}
+ table{width:100%;border-collapse:collapse;font-size:12.5px} td,th{padding:5px 7px;border-top:1px solid var(--line);text-align:right} td:first-child,th:first-child{text-align:left}
+ thead th{border:0;color:var(--muted);font-weight:500}
+ .kv{display:flex;flex-wrap:wrap;gap:6px} .kv span{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:11.5px}
+ .step{font:11px ui-monospace,Menlo,monospace;color:#456} .big{font:700 22px -apple-system;color:var(--teal)}
+ .pill{font-size:11px;background:#eef4f2;color:var(--teal);border-radius:10px;padding:2px 8px} .pill.warn{background:#fff4ec;color:var(--warn)}
+ .hide{display:none!important} .pick{cursor:pointer} tr.pick.on td{background:#eef6f3}
+ .q{display:flex;align-items:center;gap:8px;font-size:12.5px;border-top:1px solid var(--line);padding:5px 0} .q .x{color:var(--warn);cursor:pointer;font-weight:700}
+</style></head><body>
+<div class=wrap>
+ <h2>Model control surface <span class=sub id=status style="font-weight:400"><span class=dot></span>checking forge…</span></h2>
+ <div class=sub>One cockpit onto the four-step model running on the server: view the data &amp; calibration, run + queue scenarios live on forge, fine-tune settings, pick the calibration method, and read the flow / congestion / value it moves.</div>
+ <div class=row><div style="max-width:220px"><label>City</label><select id=city></select></div></div>
+ <nav id=tabs>
+  <button data-t=data class=on>Data &amp; calibration</button>
+  <button data-t=run>Run &amp; queue</button>
+  <button data-t=flow>Flow · congestion · value</button>
+ </nav>
+ <div id=t-data></div>
+ <div id=t-run class=hide></div>
+ <div id=t-flow class=hide></div>
+</div>
+<script>
+const BASE='https://167.233.64.97/model';
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString();
+const CITIES=[["boston","Boston"],["chicago","Chicago"],["seattle","Seattle"],["toronto","Toronto"],["glasgow","Glasgow"]];
+let REPORT=null, SETTINGS=null, QUEUE=[], RESULTS=[], FORGE=false;
+
+$('city').innerHTML=CITIES.map(([v,n])=>`<option value=${v}>${n}</option>`).join('');
+$('city').onchange=load;
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+ ['data','run','flow'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
+});
+
+// forge health
+fetch(BASE+'/health').then(r=>r.json()).then(j=>{FORGE=true;$('status').innerHTML=`<span class="dot on"></span>forge live · ${j.service} · zones cached ${(j.zones_cached||[]).join(', ')||'—'}`;})
+ .catch(()=>{$('status').innerHTML='<span class=dot></span>forge unreachable — run/queue disabled; reports still load';});
+
+// ---- replicate the server's flow/value/time math so SETTINGS change live results ----
+function flowOf(s){
+ const S=SETTINGS, tt=+s.total_trips, trt=+s.transit_trips, car=Math.max(0,tt-trt);
+ const vehCar=2*car/S.car_occupancy, vehTr=2*trt/S.transit_vehicle_load;
+ const voc=vehCar/Math.max(S.road_capacity_veh_per_day,1);
+ const eff=S.car_speed_mph/(1+S.bpr_alpha*Math.pow(voc,S.bpr_beta));
+ const phCar=2*car*(+s.avg_trip_mi/eff), phTr=2*trt*(+s.avg_transit_trip_mi/S.transit_speed_mph), ph=phCar+phTr;
+ const pmiles=2*(car*+s.avg_trip_mi+trt*+s.avg_transit_trip_mi);
+ return {people_flow:2*tt, vehicle_flow_cars:vehCar, person_hours:ph, person_hours_car:phCar, person_hours_transit:phTr,
+   eff_car_mph:eff, realized_mph:ph>0?pmiles/ph:0, voc, value_transacted_usd:tt*S.wage_value_per_work_trip, value_of_time_usd:ph*S.value_of_time_per_hr};
+}
+
+async function load(){
+ const c=$('city').value;
+ try{ REPORT=await (await fetch(c+'_runreport.json?t='+Date.now())).json(); }
+ catch(e){ $('t-data').innerHTML='<div class=card>run report not found for '+c+'</div>'; return; }
+ SETTINGS=Object.assign({}, REPORT.settings);
+ QUEUE=[]; RESULTS=[];
+ renderData(); renderRun(); renderFlow();
+}
+
+// ===== TAB 1: data & calibration =====
+function renderData(){
+ const s=SETTINGS, c=REPORT.calibration, bs=c.steps.beta, cs=c.steps.calib;
+ $('t-data').innerHTML=`
+ <h3>Pre-calibration settings — editable (fine-tuning)</h3>
+ <div class=card><div class=sub>Change a value; it re-derives the flow / time / value of every result live (left column below). Targets &amp; bounds also seed the live runs. <span class=pill>server-applied settings ship when forge redeploys the updated engine</span></div>
+  <div class=row>
+   ${setIn('mean_work_trip_mi_target','trip-length target (mi)')}
+   ${setIn('transit_share_pct_target','transit-share target (%)')}
+   ${setIn('value_of_time_per_hr','value of time ($/hr)')}
+   ${setIn('wage_value_per_work_trip','wage / work-trip ($)')}
+  </div>
+  <div class=row>
+   ${setIn('car_speed_mph','car free-flow (mph)')}
+   ${setIn('transit_speed_mph','transit (mph)')}
+   ${setIn('car_occupancy','car occupancy')}
+   ${setIn('transit_vehicle_load','transit load')}
+  </div>
+  <div class=row>
+   ${setIn('bpr_alpha','BPR α')}
+   ${setIn('bpr_beta','BPR β')}
+   ${setIn('road_capacity_veh_per_day','road capacity (veh/day)')}
+   ${setIn('corridor_capacity_veh_per_day','corridor capacity')}
+  </div>
+  <div style="margin-top:8px"><button class=ghost onclick=resetSettings()>Reset to report values</button></div>
+ </div>
+
+ <h3>Calibration method — pick one (diversity of methods)</h3>
+ <div class=card><div class=sub>Each method fits the SAME targets; β/calib differ. Click a row to load that method's calibrated knobs into the live run. Current distribution method: <b>${REPORT.calibration.dist_method||'ipf'}</b> / solver <b>${REPORT.calibration.solver||'bisection'}</b>.</div>
+  <table><thead><tr><th>method</th><th>solver</th><th>β</th><th>calib</th><th>avg mi</th><th>transit %</th><th>fit</th></tr></thead>
+  <tbody>${REPORT.methods.map((m,i)=>`<tr class="pick ${i===0?'on':''}" onclick="pickMethod(${i})"><td>${m.label} ${m.primary?'<span class=pill>primary</span>':''}</td><td>${m.solver}</td><td>${m.beta}</td><td>${m.calib}</td><td>${m.avg_trip_mi}</td><td>${m.transit_pct}</td><td>${m.fit_mi>=0?'+':''}${m.fit_mi}mi / ${m.fit_pct>=0?'+':''}${m.fit_pct}%</td></tr>`).join('')}</tbody></table>
+  <div class=sub style="margin-top:6px">Queued methods (need observed counts): GDME, ODME, max-likelihood gravity, discrete-choice logit — roadmap §9.</div>
+ </div>
+
+ <h3>Pre → steps → post (how it converged)</h3>
+ <div class=card>
+  <div class=sub>${c.method}</div>
+  <div class=step>β solve → mean trip length (target ${s.mean_work_trip_mi_target} mi):</div>
+  ${bs.map(x=>`<div class=step>  i${x.i}  β=${x.beta} → ${x.avg_trip_mi} mi</div>`).join('')}
+  <div class=step style="margin-top:6px">calib solve → transit share (target ${s.transit_share_pct_target}%):</div>
+  ${cs.map(x=>`<div class=step>  i${x.i}  calib=${x.calib} → ${x.transit_pct}%</div>`).join('')}
+  <div style="margin-top:8px">post: <b style="color:var(--ok)">β=${(+c.post.beta).toFixed(4)} · calib=${(+c.post.calib).toFixed(3)}</b> → achieved ${c.achieved.avg_trip_mi} mi / ${c.achieved.transit_pct}%</div>
+ </div>`;
+}
+function setIn(k,lab){ return `<div><label>${lab}</label><input id=set_${k} value="${SETTINGS[k]}" onchange="setVal('${k}',this.value)"></div>`; }
+function setVal(k,v){ SETTINGS[k]=parseFloat(v); renderFlow(); if(!$('t-run').classList.contains('hide')) renderRunResults(); }
+function resetSettings(){ SETTINGS=Object.assign({},REPORT.settings); renderData(); renderFlow(); }
+let PICK=0;
+function pickMethod(i){ PICK=i; document.querySelectorAll('#t-data tr.pick').forEach((r,j)=>r.classList.toggle('on',j===i));
+ const m=REPORT.methods[i]; $('run_beta')&&($('run_beta').value=m.beta); $('run_calib')&&($('run_calib').value=m.calib); }
+
+// ===== TAB 2: run & queue (live on forge) =====
+function renderRun(){
+ const m=REPORT.methods[PICK]||REPORT.methods[0];
+ $('t-run').innerHTML=`
+ <h3>Run a scenario live on forge</h3>
+ <div class=card>
+  <div class=row>
+   <div><label>Year</label><input id=run_year type=number value=${REPORT.scenarios[0].year}></div>
+   <div><label>β (from picked method)</label><input id=run_beta type=number step=0.001 value=${m.beta}></div>
+   <div><label>transit calib</label><input id=run_calib type=number step=0.01 value=${m.calib}></div>
+   <div><label>top corridors</label><input id=run_top type=number value=25></div>
+  </div>
+  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+   <button onclick=runOne()>▶ Run now</button>
+   <button class=ghost onclick=enqueue()>＋ Add to queue</button>
+   <button class=ghost onclick=runQueue() id=runq>Run queue (0)</button>
+  </div>
+  <div class=sub style="margin-top:6px">Runs on forge via the secure proxy; the editable settings re-derive flow/time/value of each result. Distribution on forge is IPF today — full server-side method/settings ship when the updated engine is redeployed (committed).</div>
+  <div id=queuebox></div>
+ </div>
+ <div id=runout></div>`;
+ renderQueue();
+}
+function curRun(){ return {year:+$('run_year').value, beta:+$('run_beta').value, calib:+$('run_calib').value, top:+$('run_top').value}; }
+function enqueue(){ const r=curRun(); r.label=`${r.year} · β${r.beta} · c${r.calib}`; QUEUE.push(r); renderQueue(); }
+function renderQueue(){
+ $('runq')&&($('runq').textContent=`Run queue (${QUEUE.length})`);
+ $('queuebox').innerHTML = QUEUE.length? '<h3>Queue</h3>'+QUEUE.map((q,i)=>`<div class=q><span style=flex:1>${i+1}. ${q.label}</span><span class=x onclick=deq(${i})>✕</span></div>`).join('') : '';
+}
+function deq(i){ QUEUE.splice(i,1); renderQueue(); }
+async function postScenario(r){
+ const resp=await fetch(BASE+'/scenario',{method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({year:r.year,beta:r.beta,transit_calib:r.calib,top_corridors:r.top})});
+ return await resp.json();
+}
+async function runOne(){
+ if(!FORGE){ $('runout').innerHTML='<div class=card>forge unreachable</div>'; return; }
+ $('runout').innerHTML='<div class=card>running on forge…</div>'; const r=curRun(); const t0=performance.now();
+ try{ const d=await postScenario(r); RESULTS=[{r,d,ms:Math.round(performance.now()-t0)}]; renderRunResults(); }
+ catch(e){ $('runout').innerHTML='<div class=card>run failed — '+e+'</div>'; }
+}
+async function runQueue(){
+ if(!FORGE||!QUEUE.length) return;
+ RESULTS=[]; $('runout').innerHTML='<div class=card>running queue…</div>';
+ for(const r of QUEUE){ try{ const t0=performance.now(); const d=await postScenario(r); RESULTS.push({r,d,ms:Math.round(performance.now()-t0)}); renderRunResults(); }catch(e){} }
+}
+function renderRunResults(){
+ if(!RESULTS.length){ $('runout').innerHTML=''; return; }
+ const rows=RESULTS.map(({r,d,ms})=>{ const s=d.summary||{}; const f=flowOf(s);
+  return `<tr><td>${r.label}</td><td>${s.transit_pct}%</td><td>${s.avg_trip_mi}</td><td>${fmt(f.people_flow)}</td><td>${fmt(f.vehicle_flow_cars)}</td><td>${f.eff_car_mph.toFixed(1)}</td><td>${fmt(f.person_hours)}</td><td>$${fmt(f.value_transacted_usd)}</td><td>${ms}ms</td></tr>`; }).join('');
+ $('runout').innerHTML=`<h3>Results (settings-derived)</h3><div class=card><table>
+  <thead><tr><th>run</th><th>transit</th><th>avg mi</th><th>people</th><th>cars</th><th>eff mph</th><th>person-hrs</th><th>value/day</th><th>t</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <div class=sub style="margin-top:6px">people flow, cars, speed, hours &amp; value recomputed from YOUR settings — change a setting on the first tab and these update.</div></div>`;
+}
+
+// ===== TAB 3: flow · congestion · value =====
+function renderFlow(){
+ const sc=REPORT.scenarios.map(x=>({x, f:flowOf(x.summary)}));   // re-derive from current settings
+ const base=sc[0].f;
+ const cong=REPORT.congestion;
+ $('t-flow').innerHTML=`
+ <h3>People flow · vehicle flow · speed (settings-derived)</h3>
+ <div class=card><table><thead><tr><th>scenario</th><th>people-trips</th><th>cars on road</th><th>eff mph</th><th>realized mph</th><th>V/C</th></tr></thead>
+  <tbody>${sc.map(({x,f})=>`<tr><td>${x.label}</td><td>${fmt(f.people_flow)}</td><td>${fmt(f.vehicle_flow_cars)}</td><td>${f.eff_car_mph.toFixed(1)}</td><td>${f.realized_mph.toFixed(1)}</td><td>${f.voc.toFixed(3)}</td></tr>`).join('')}</tbody></table>
+  <div class=sub style="margin-top:6px">Speed handled in an alternative manner — congestion-adjusted (BPR) "eff mph" + emergent "realized mph". Edit settings on tab 1 to see these move.</div></div>
+
+ <h3>Aggregated time &amp; value moved</h3>
+ <div class=card><table><thead><tr><th>scenario</th><th>person-hrs</th><th>car hrs</th><th>transit hrs</th><th>value/day</th><th>Δ cars</th><th>Δ time</th><th>Δ value</th></tr></thead>
+  <tbody>${sc.map(({x,f})=>`<tr><td>${x.label}</td><td>${fmt(f.person_hours)}</td><td>${fmt(f.person_hours_car)}</td><td>${fmt(f.person_hours_transit)}</td><td>$${fmt(f.value_transacted_usd)}</td>
+   <td>${fmt(f.vehicle_flow_cars-base.vehicle_flow_cars)}</td><td>${(f.person_hours-base.person_hours)>=0?'+':''}${fmt(f.person_hours-base.person_hours)}</td><td>${(f.value_transacted_usd-base.value_transacted_usd)>=0?'+$':'-$'}${fmt(Math.abs(f.value_transacted_usd-base.value_transacted_usd))}</td></tr>`).join('')}</tbody></table>
+  <div class=sub style="margin-top:6px">"People as vehicles of value" — each work trip carries labour value to a job; Δ vs base shows cars added, time friction, value moved as the city grows.</div></div>
+
+ <h3>Traffic assignment — congested corridors ${cong&&cong.top.length?'':'<span class="pill warn">single-region (OSM grid) — city-wide only</span>'}</h3>
+ <div class=card>
+  ${cong&&cong.top.length? `<div class=sub>Per-corridor car flow on a BPR curve (capacity ${fmt(cong.corridor_capacity_veh_per_day)} veh/day, editable). ${cong.note}</div>
+   <table><thead><tr><th>corridor</th><th>cars</th><th>mi</th><th>V/C</th><th>eff mph</th><th>+min</th></tr></thead>
+   <tbody>${cong.top.map(r=>`<tr><td>${r.corridor}</td><td>${fmt(r.cars)}</td><td>${r.dist_mi}</td><td>${r.voc>1?'<b style=color:var(--warn)>'+r.voc+'</b>':r.voc}</td><td>${r.eff_mph}</td><td>${r.delay_min}</td></tr>`).join('')}</tbody></table>
+   <div class=sub style="margin-top:6px">V/C &gt; 1 = over capacity (bottleneck, in orange). First-order proxy capacity until a real road network is wired — roadmap §11.</div>`
+   : `<div class=sub>This city is built from OpenStreetMap as a single region, so there are no inter-town corridors yet. City-wide congestion shows on the flow table above; per-corridor assignment needs a multi-town zone system (national-census adapter) or grid-corridor aggregation — roadmap §11.</div>`}
+ </div>`;
+}
+load();
+</script></body></html>

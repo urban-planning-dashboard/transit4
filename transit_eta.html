@@ -204,7 +204,15 @@ $('mode_pill').textContent='live predictions';
 autoLocate(true);
 
 // ---- PWA: installable as a standalone app, works offline (per-applet, not all of isan) ----
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw-departures.js').catch(()=>{}); }
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.register('sw-departures.js', {updateViaCache:'none'}).then(reg=>{
+   reg.update();   // check for a newer applet every open
+   reg.addEventListener('updatefound', ()=>{ const nw=reg.installing; nw&&nw.addEventListener('statechange', ()=>{
+     // a new version activated (and we already had one) → reload to the latest, automatically
+     if(nw.state==='activated' && navigator.serviceWorker.controller){ location.reload(); }
+   }); });
+ }).catch(()=>{});
+}
 let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e; $('installbtn').style.display=''; });
 $('installbtn').onclick=async()=>{ if(deferredPrompt){ deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; $('installbtn').style.display='none'; }

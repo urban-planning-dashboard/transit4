@@ -53,6 +53,7 @@
   <button class="ghost on" data-mode=all>all</button>
   <button class=ghost data-mode=train>train</button>
   <button class=ghost data-mode=bus>bus</button></span>
+ <button class=ghost id=bikebtn title="show docked bike stations + live availability">🚲 bikes</button>
  <span id=routebox></span>
 </div>
 <div class=wrap><div id=map></div>
@@ -72,7 +73,7 @@ let CITY='boston', PIN=null, RADIUS=600, MODE='all', ROUTEFILTER=null, OFFLINE=f
 let GIDX=null, GCELLS={};   // gtfs stops index + fetched cells
 const map=L.map('map',{zoomControl:true}).setView(CITIES.boston.center,14);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-let layers=L.layerGroup().addTo(map), vehLayer=L.layerGroup().addTo(map), pinMarker=null, radCircle=null;
+let layers=L.layerGroup().addTo(map), vehLayer=L.layerGroup().addTo(map), bikeLayer=L.layerGroup().addTo(map), pinMarker=null, radCircle=null, BIKES=false;
 const clock=()=>new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
 setInterval(()=>$('clock').textContent=clock(),1000); $('clock').textContent=clock();
 $('city').innerHTML=Object.entries(CITIES).map(([k,c])=>`<option value=${k}>${c.name}</option>`).join('');
@@ -112,8 +113,21 @@ function setPin(ll){ PIN=ll; if(pinMarker)map.removeLayer(pinMarker); if(radCirc
  refresh(); if(timer)clearInterval(timer); if(CITIES[CITY].backend==='mbta') timer=setInterval(refresh,20000); }
 
 async function refresh(){ if(!PIN)return; if(radCircle){radCircle.setRadius(RADIUS);radCircle.setLatLng(PIN);}
+ if(BIKES) loadBikes();
  try{ const r= CITIES[CITY].backend==='mbta' ? await mbta() : await gtfs();
   renderRouteChips(r.routes||{}); render(r); }catch(e){ $('side').innerHTML='<div class=alert>'+e.message+'</div>'; } }
+
+// ---------- docked bikes (GBFS, live availability — server-cached) ----------
+$('bikebtn').onclick=()=>{ BIKES=!BIKES; $('bikebtn').classList.toggle('on',BIKES); if(BIKES&&PIN) loadBikes(); else bikeLayer.clearLayers(); };
+async function loadBikes(){ bikeLayer.clearLayers();
+ try{ const r=await fetch('bikes/'+CITY+'.json'); if(!r.ok) throw 0; const d=await r.json();
+  const near=d.stations.filter(s=>distM(PIN,[s[0],s[1]])<=Math.max(RADIUS,800));
+  near.forEach(s=>{ const [la,lo,nm,bk,dk]=s; const col=bk>2?'#1b7a4b':(bk>0?'#b58a07':'#c0392b');
+   L.marker([la,lo],{icon:L.divIcon({className:'',html:`<div style="background:${col};color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)">${bk}</div>`,iconSize:[24,24]})})
+    .addTo(bikeLayer).bindPopup(`<b>🚲 ${nm}</b><br>${bk} bikes · ${dk} docks free`); });
+  if(!near.length) bikeLayer.clearLayers();
+ }catch(e){ BIKES=false; $('bikebtn').classList.remove('on'); }
+}
 
 // ---------- common render ----------
 function render(r){ layers.clearLayers();

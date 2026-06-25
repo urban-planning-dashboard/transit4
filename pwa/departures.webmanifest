@@ -1,0 +1,15 @@
+{
+  "name": "Next service",
+  "short_name": "Next service",
+  "description": "Nearby stops + next departures, live or scheduled.",
+  "start_url": "../transit_eta.html",
+  "scope": "../",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#00695C",
+  "theme_color": "#00695C",
+  "icons": [
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any maskable" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" }
+  ]
+}

@@ -1,6 +1,13 @@
 <!doctype html><html><head><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1">
-<title>transit4 · live ETA</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Next service</title>
+<meta name="theme-color" content="#00695C">
+<link rel="manifest" href="pwa/departures.webmanifest">
+<link rel="apple-touch-icon" href="pwa/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Next service">
 <link rel=stylesheet href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
  :root{--teal:#00695C;--line:#e6ebe9;--muted:#667085;--bg:#f6faf9;--warn:#b54708;--ok:#1b7a4b}
@@ -9,24 +16,34 @@
  header b{font-size:15px} .pill{font-size:11px;background:rgba(255,255,255,.18);padding:2px 8px;border-radius:10px}
  select{font:inherit;border:0;border-radius:8px;padding:4px 8px;background:rgba(255,255,255,.18);color:#fff}
  select option{color:#000}
- .wrap{flex:1;min-height:0;display:flex} #map{flex:1;min-width:0} .side{width:340px;max-width:46%;overflow:auto;border-left:1px solid var(--line);background:#fff;padding:10px}
- @media(max-width:680px){.wrap{flex-direction:column}.side{width:auto;max-width:none;border-left:0;border-top:1px solid var(--line);height:46%}}
+ .wrap{flex:1;min-height:0;display:flex} #map{flex:1;min-width:0} .side{width:360px;max-width:46%;overflow:auto;border-left:1px solid var(--line);background:#fff;padding:12px}
  .ctl{padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px}
- button{background:var(--teal);color:#fff;border:0;border-radius:8px;padding:7px 12px;font:inherit;font-weight:600;cursor:pointer}
- button.ghost{background:#fff;color:var(--teal);border:1px solid var(--line);font-weight:500;padding:5px 10px;border-radius:14px}
+ button{background:var(--teal);color:#fff;border:0;border-radius:8px;padding:8px 13px;font:inherit;font-weight:600;cursor:pointer}
+ button.ghost{background:#fff;color:var(--teal);border:1px solid var(--line);font-weight:500;padding:6px 11px;border-radius:14px}
  button.ghost.on{background:var(--teal);color:#fff} label{color:var(--muted)}
- .stop{border-top:1px solid var(--line);padding:8px 0} .stop h4{margin:0 0 4px;font-size:13px} .stop .m{font-size:11px;color:var(--muted)}
- .dep{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px}
- .rt{font-weight:700;color:#fff;border-radius:6px;padding:1px 7px;font-size:11.5px;min-width:30px;text-align:center}
- .eta{margin-left:auto;font-weight:700} .eta.live::after{content:" ●";color:#7CFC00} .small{font-size:11px;color:var(--muted)}
- .delta.late{color:var(--warn)} .delta.early{color:#2563eb} .delta.ontime{color:var(--ok)}
- .alert{background:#fff4ec;border:1px solid #f3d3b5;color:var(--warn);border-radius:8px;padding:6px 8px;font-size:12px;margin-bottom:8px}
- .sched{background:#eef4f2;border:1px solid var(--line);color:#456;border-radius:8px;padding:6px 8px;font-size:11.5px;margin-bottom:8px}
- .hint{color:var(--muted);font-size:12px;line-height:1.5}
+ .stop{border-top:1px solid var(--line);padding:11px 2px} .stop h4{margin:0 0 4px;font-size:14px} .stop .m{font-size:11.5px;color:var(--muted)}
+ .dep{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13.5px}
+ .rt{font-weight:800;color:#fff;border-radius:7px;padding:3px 9px;font-size:12.5px;min-width:34px;text-align:center}
+ .eta{margin-left:auto;font-weight:800;font-size:14px} .eta.live::after{content:" ●";color:#1b7a4b} .small{font-size:11px;color:var(--muted)}
+ .delta{font-size:11.5px;font-weight:600;margin-left:auto;padding-left:8px} .delta.late{color:var(--warn)} .delta.early{color:#2563eb} .delta.ontime{color:var(--ok)}
+ .alert{background:#fff4ec;border:1px solid #f3d3b5;color:var(--warn);border-radius:8px;padding:7px 9px;font-size:12.5px;margin-bottom:8px}
+ .sched{background:#eef4f2;border:1px solid var(--line);color:#456;border-radius:8px;padding:7px 9px;font-size:12px;margin-bottom:8px}
+ .hint{color:var(--muted);font-size:12.5px;line-height:1.6}
+ /* mobile = a proper bottom sheet over a big map */
+ @media(max-width:680px){
+   .wrap{flex-direction:column}
+   #map{flex:1;min-height:48vh}
+   .side{width:auto;max-width:none;border-left:0;height:50vh;border-radius:18px 18px 0 0;margin-top:-18px;
+     box-shadow:0 -4px 16px rgba(0,0,0,.12);position:relative;z-index:500;padding:6px 14px 22px;-webkit-overflow-scrolling:touch}
+   .side::before{content:"";display:block;width:40px;height:5px;border-radius:3px;background:#cdd6d2;margin:6px auto 8px}
+   .stop{padding:13px 2px} .stop h4{font-size:15px} .dep{font-size:15px;padding:7px 0} .rt{font-size:13px;padding:3px 10px;min-width:38px}
+   .eta{font-size:15px} .ctl{font-size:13px} header b{font-size:16px}
+ }
 </style></head><body>
-<header><b>Live ETA</b>
+<header><b>Next service</b>
  <select id=city></select>
  <span class=pill id=mode_pill></span><span style=flex:1></span>
+ <button class=ghost id=installbtn style="display:none" title="install as an app on your phone">⬇ Install app</button>
  <button class=ghost id=offbtn title="cache this city's schedule on your device">offline: off</button>
  <span class=pill id=clock></span></header>
 <div class=ctl>
@@ -185,4 +202,16 @@ function loadOffline(){ OFFLINE=false; $('offbtn').textContent='offline: off'; $
 $('mode_pill').textContent='live predictions';
 // On open: ask for GPS and auto-locate (silent fallback to tap-the-map if denied/unavailable)
 autoLocate(true);
+
+// ---- PWA: installable as a standalone app, works offline (per-applet, not all of isan) ----
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw-departures.js').catch(()=>{}); }
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e; $('installbtn').style.display=''; });
+$('installbtn').onclick=async()=>{ if(deferredPrompt){ deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; $('installbtn').style.display='none'; }
+ else { alert('To install: open the browser menu and choose "Add to Home Screen".'); } };
+window.addEventListener('appinstalled', ()=>{ $('installbtn').style.display='none'; });
+// iOS Safari has no install prompt — show the button with a hint so people can Add to Home Screen
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const standalone=window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+if(isIOS && !standalone){ $('installbtn').style.display=''; }
 </script></body></html>

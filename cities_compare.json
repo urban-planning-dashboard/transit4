@@ -162,6 +162,37 @@
      "jobs45": 531541
     }
    ]
+  },
+  {
+   "id": "melbourne",
+   "name": "Melbourne",
+   "tier": "OSM + census total (AU)",
+   "beta": 0.0968,
+   "calib": 1.003,
+   "target_share_pct": 15.0,
+   "scenarios": [
+    {
+     "label": "Baseline (OSM current)",
+     "transit_pct": 15.0,
+     "transit_trips": 369977,
+     "avg_trip_mi": 9.51,
+     "jobs45": 1013105
+    },
+    {
+     "label": "Horizon growth",
+     "transit_pct": 15.0,
+     "transit_trips": 436566,
+     "avg_trip_mi": 9.5,
+     "jobs45": 1195431
+    },
+    {
+     "label": "Horizon + CBD/inner TOD",
+     "transit_pct": 15.0,
+     "transit_trips": 449850,
+     "avg_trip_mi": 9.3,
+     "jobs45": 1417321
+    }
+   ]
   }
  ],
  "note": "US metros use the exact census-tract pipeline; international cities (Toronto, Glasgow) use the OSM intake for spatial structure with population/jobs magnitude anchored to the national census total. Each calibrated to its own observed transit-share target."

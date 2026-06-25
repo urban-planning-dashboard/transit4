@@ -45,7 +45,9 @@
 <script>
 const MBTA='https://api-v3.mbta.com';
 const CITIES={
- boston:{name:'Boston · MBTA',backend:'mbta',center:[42.3656,-71.0612],tz:'America/New_York'},
+ // all cities read the box's GTFS index + server-cached tripupdates (live) — no per-client
+ // transit-API calls, so no 429 rate-limiting. Boston's MBTA live is refreshed server-side.
+ boston:{name:'Boston · MBTA',backend:'gtfs',center:[42.3656,-71.0612],tz:'America/New_York',base:'gtfs/boston'},
  toronto:{name:'Toronto · TTC',backend:'gtfs',center:[43.6561,-79.3802],tz:'America/Toronto',base:'gtfs/toronto'}
 };
 const $=id=>document.getElementById(id);

@@ -35,11 +35,13 @@
   <button data-t=run>Run &amp; queue</button>
   <button data-t=flow>Flow · congestion · value</button>
   <button data-t=equity>Cost–benefit &amp; equity</button>
+  <button data-t=changes>Model changes</button>
  </nav>
  <div id=t-data></div>
  <div id=t-run class=hide></div>
  <div id=t-flow class=hide></div>
  <div id=t-equity class=hide></div>
+ <div id=t-changes class=hide></div>
 </div>
 <script>
 const BASE='https://167.233.64.97/model';
@@ -52,7 +54,7 @@ $('city').innerHTML=CITIES.map(([v,n])=>`<option value=${v}>${n}</option>`).join
 $('city').onchange=load;
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
- ['data','run','flow','equity'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
+ ['data','run','flow','equity','changes'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
 });
 
 // forge health
@@ -77,7 +79,42 @@ async function load(){
  catch(e){ $('t-data').innerHTML='<div class=card>run report not found for '+c+'</div>'; return; }
  SETTINGS=Object.assign({}, REPORT.settings);
  QUEUE=[]; RESULTS=[]; GROWTH=[]; const m0=REPORT.methods[0]||{}; PICKMETHOD={dist:m0.dist_method||'ipf',mode:m0.mode_method||'scalar'};
- renderData(); renderRun(); renderFlow(); renderEquity();
+ renderData(); renderRun(); renderFlow(); renderEquity(); renderChanges();
+}
+
+// ===== TAB 5: model changes (version history + diffs — auditable model updates) =====
+async function renderChanges(){
+ const el=$('t-changes');
+ let hist;
+ try{ hist=await (await fetch('model_history.json?t='+Date.now())).json(); }
+ catch(e){ el.innerHTML='<div class=card>No change history yet — run app/model_changelog.py to record versions.</div>'; return; }
+ const series=(hist.cities||{})[$('city').value]||[];
+ if(!series.length){ el.innerHTML='<div class=card>No versions recorded for this city yet.</div>'; return; }
+ const fmtv=(v)=>v==null?'—':(typeof v==='number'?(Math.abs(v)>=1000?Math.round(v).toLocaleString():v):v);
+ let html=`<h3>Model version history — what changed between updates</h3>
+  <div class=sub>Each model update is snapshotted (code version + assumptions + calibration + outputs) and diffed against the prior version, so changes are auditable. Newest first.</div>`;
+ series.forEach((snap,i)=>{
+  const ch=snap.changes||{};
+  const isCur=i===0;
+  html+=`<div class=card><div style="display:flex;align-items:center;gap:8px">
+    <span class=pill>${isCur?'current':'v'}</span><b>${snap.version}</b>
+    <span class=k>${snap.date}</span>${isCur?'':`<span class=k>→ replaced by ${series[i-1].version}</span>`}</div>`;
+  if(ch.note==='baseline' || (i===series.length-1 && !ch.any)){
+   html+='<div class=sub style="margin-top:6px">Baseline version (nothing before it to compare).</div>';
+  } else if(ch.any===false){
+   html+='<div class=sub style="margin-top:6px">No tracked changes from the previous version.</div>';
+  } else {
+   if(ch.settings&&ch.settings.length){ html+='<div class=step style="margin-top:6px">Assumptions changed:</div>'+
+     ch.settings.map(c=>`<div class=step>  ${c.knob}: ${fmtv(c.from)} → ${fmtv(c.to)}</div>`).join(''); }
+   if(ch.calibration&&ch.calibration.length){ html+='<div class=step style="margin-top:4px">Calibration:</div>'+
+     ch.calibration.map(c=>`<div class=step>  ${c.param}: ${fmtv(c.from)} → ${fmtv(c.to)} (${c.delta>=0?'+':''}${c.delta})</div>`).join(''); }
+   if(ch.outputs&&ch.outputs.length){ html+='<div class=step style="margin-top:4px">Outputs moved:</div>'+
+     ch.outputs.slice(0,12).map(c=>`<div class=step>  ${c.scenario} · ${c.metric}: ${fmtv(c.from)} → ${fmtv(c.to)} (${c.delta>=0?'+':''}${fmtv(c.delta)})</div>`).join(''); }
+  }
+  // the assumptions snapshot at this version
+  html+=`<div class=sub style="margin-top:8px">calibrated β=${snap.calibration?.beta} · calib=${snap.calibration?.calib}${snap.wage_distortion_pct!=null?` · wage-distortion ${snap.wage_distortion_pct}pts`:''}</div></div>`;
+ });
+ el.innerHTML=html;
 }
 
 // ===== TAB 1: data & calibration =====

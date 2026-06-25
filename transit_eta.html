@@ -39,7 +39,7 @@
  <span id=routebox></span>
 </div>
 <div class=wrap><div id=map></div>
- <div class=side id=side><div class=hint>Pick a city, tap the map to drop a pin (or 📍), set your walk radius. You'll see nearby stations with next departures — <b>live</b> where the agency reports it (with the gap vs schedule), or the <b>scheduled</b> times where only the timetable is available.</div></div>
+ <div class=side id=side><div class=hint>Allow location and you'll jump straight to nearby stations with their next departures — <b>live</b> where the agency reports it (with the gap vs schedule), or the <b>scheduled</b> times otherwise. Or tap the map / 📍 to drop a pin and set your walk radius.</div></div>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -65,17 +65,26 @@ function citySec(tz){ const p=new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour1
  const g=k=>+(p.find(x=>x.type===k).value); return g('hour')*3600+g('minute')*60+g('second'); }
 const RTCOL={0:'1b7a4b',1:'c0392b',2:'6d28d9',3:'2563eb'};   // tram/subway/rail/bus colors for GTFS
 
-$('city').onchange=e=>{ CITY=e.target.value; const c=CITIES[CITY]; GIDX=null; GCELLS={}; PIN=null; ROUTEFILTER=null;
+function selectCity(k,keepPin){ CITY=k; $('city').value=k; const c=CITIES[CITY]; GIDX=null; GCELLS={}; ROUTEFILTER=null;
  $('mode_pill').textContent=c.backend==='mbta'?'live predictions':'schedule';
- map.setView(c.center,14); layers.clearLayers(); vehLayer.clearLayers(); if(pinMarker)map.removeLayer(pinMarker); if(radCircle)map.removeLayer(radCircle);
- $('side').innerHTML='<div class=hint>Tap the map or use 📍 to drop a pin in '+c.name.split(' · ')[0]+'.</div>'; loadOffline(); };
+ if(!keepPin){ PIN=null; map.setView(c.center,14); layers.clearLayers(); vehLayer.clearLayers(); if(pinMarker)map.removeLayer(pinMarker); if(radCircle)map.removeLayer(radCircle);
+  $('side').innerHTML='<div class=hint>Finding your location… or tap the map / 📍 to drop a pin in '+c.name.split(' · ')[0]+'.</div>'; }
+ loadOffline(); }
+$('city').onchange=e=>selectCity(e.target.value);
 $('rad').oninput=e=>{ RADIUS=+e.target.value; $('radlbl').textContent=RADIUS+' m'; };
 $('rad').onchange=()=>PIN&&refresh();
 $('modes').onclick=e=>{ if(!e.target.dataset.mode)return; MODE=e.target.dataset.mode; ROUTEFILTER=null;
  document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on',b===e.target)); PIN&&refresh(); };
-$('loc').onclick=()=>{ if(!navigator.geolocation){alert('no geolocation');return;} $('loc').textContent='locating…';
- navigator.geolocation.getCurrentPosition(p=>{ setPin([p.coords.latitude,p.coords.longitude]); map.setView(PIN,15); $('loc').textContent='📍 My location'; },
-  ()=>{ $('loc').textContent='📍 My location'; alert('location denied — tap the map to drop a pin'); }); };
+// nearest configured city to a GPS fix (within ~150 km), so location auto-selects the city
+function nearestCity(ll){ let best=null,bd=150000; for(const [k,c] of Object.entries(CITIES)){ const d=distM(ll,c.center); if(d<bd){bd=d;best=k;} } return best; }
+function autoLocate(silent){ if(!navigator.geolocation){ if(!silent)alert('no geolocation on this device'); return; }
+ $('loc').textContent='locating…';
+ navigator.geolocation.getCurrentPosition(p=>{ const ll=[p.coords.latitude,p.coords.longitude]; const ci=nearestCity(ll);
+   if(ci&&ci!==CITY) selectCity(ci,true);            // GPS → auto-pick the city you're in
+   setPin(ll); map.setView(ll,15); $('loc').textContent='📍 My location'; },
+  e=>{ $('loc').textContent='📍 My location'; if(!silent)alert('location unavailable — tap the map to drop a pin'); },
+  {enableHighAccuracy:true,timeout:9000,maximumAge:60000}); }
+$('loc').onclick=()=>autoLocate(false);
 $('offbtn').onclick=()=>{ OFFLINE=!OFFLINE; $('offbtn').textContent='offline: '+(OFFLINE?'on':'off'); $('offbtn').classList.toggle('on',OFFLINE);
  if(OFFLINE&&CITIES[CITY].backend==='gtfs') cacheCity(); };
 map.on('click',e=>setPin([e.latlng.lat,e.latlng.lng]));
@@ -172,4 +181,6 @@ async function cacheCity(){ const c=CITIES[CITY]; try{ const idx=await gget(c.ba
  $('offbtn').textContent='offline: on'; alert(`Cached ${idx.n} stops / ${n} areas for ${c.name.split(' · ')[0]} (${idx.date}). Works offline; schedule only — go online for live.`); }catch(e){ alert('cache failed: '+e.message); } }
 function loadOffline(){ OFFLINE=false; $('offbtn').textContent='offline: off'; $('offbtn').classList.remove('on'); }
 $('mode_pill').textContent='live predictions';
+// On open: ask for GPS and auto-locate (silent fallback to tap-the-map if denied/unavailable)
+autoLocate(true);
 </script></body></html>

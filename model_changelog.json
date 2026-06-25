@@ -1,0 +1,36 @@
+{
+ "version": "19f09cc",
+ "date": "2026-06-25 18:42",
+ "cities": {
+  "boston": {
+   "version": "19f09cc",
+   "date": "2026-06-25 18:42",
+   "baseline": true
+  },
+  "chicago": {
+   "version": "19f09cc",
+   "date": "2026-06-25 18:42",
+   "baseline": true
+  },
+  "seattle": {
+   "version": "19f09cc",
+   "date": "2026-06-25 18:42",
+   "baseline": true
+  },
+  "toronto": {
+   "version": "19f09cc",
+   "date": "2026-06-25 18:42",
+   "baseline": true
+  },
+  "glasgow": {
+   "version": "19f09cc",
+   "date": "2026-06-25 18:42",
+   "baseline": true
+  },
+  "melbourne": {
+   "version": "19f09cc",
+   "date": "2026-06-25 18:42",
+   "baseline": true
+  }
+ }
+}

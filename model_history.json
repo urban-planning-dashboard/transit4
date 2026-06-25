@@ -1,0 +1,398 @@
+{
+ "cities": {
+  "boston": [
+   {
+    "version": "19f09cc",
+    "date": "2026-06-25 18:42",
+    "settings": {
+     "corridor_capacity_veh_per_day": 80000.0,
+     "dist_method": "ipf",
+     "transit_speed_mph": 15.0,
+     "bpr_beta": 4.0,
+     "value_of_time_per_hr": 18.0,
+     "bpr_alpha": 0.15,
+     "road_capacity_veh_per_day": 4000000.0,
+     "car_speed_mph": 25.0,
+     "tolerance_pct": 10,
+     "wage_value_per_work_trip": 150.0,
+     "transit_vehicle_load": 25.0,
+     "mean_work_trip_mi_target": 11.0,
+     "solver": "bisection",
+     "transit_share_pct_target": 17.1,
+     "car_occupancy": 1.12
+    },
+    "calibration": {
+     "beta": 0.05794019910506905,
+     "calib": 1.08046875
+    },
+    "wage_distortion_pct": 10.4,
+    "outputs": [
+     {
+      "label": "2019 baseline",
+      "transit_pct": 17.1,
+      "avg_trip_mi": 11.01,
+      "people_flow": 3317164.0,
+      "cars": 2455630.0,
+      "eff_mph": 24.5,
+      "value_usd": 248787300.0,
+      "bottlenecks": 0
+     },
+     {
+      "label": "2026 current",
+      "transit_pct": 17.6,
+      "avg_trip_mi": 10.88,
+      "people_flow": 3424120.0,
+      "cars": 2519957.0,
+      "eff_mph": 24.4,
+      "value_usd": 256809000.0,
+      "bottlenecks": 0
+     },
+     {
+      "label": "2040 control",
+      "transit_pct": 18.5,
+      "avg_trip_mi": 10.65,
+      "people_flow": 3638032.0,
+      "cars": 2648609.0,
+      "eff_mph": 24.3,
+      "value_usd": 272852400.0,
+      "bottlenecks": 0
+     },
+     {
+      "label": "2040 + Allston dev",
+      "transit_pct": 19.1,
+      "avg_trip_mi": 10.46,
+      "people_flow": 3795928.0,
+      "cars": 2740498.0,
+      "eff_mph": 24.2,
+      "value_usd": 284694600.0,
+      "bottlenecks": 0
+     }
+    ],
+    "changes": {
+     "any": false,
+     "note": "baseline"
+    }
+   }
+  ],
+  "chicago": [
+   {
+    "version": "19f09cc",
+    "date": "2026-06-25 18:42",
+    "settings": {
+     "corridor_capacity_veh_per_day": 80000.0,
+     "dist_method": "ipf",
+     "transit_speed_mph": 15.0,
+     "bpr_beta": 4.0,
+     "value_of_time_per_hr": 18.0,
+     "bpr_alpha": 0.15,
+     "road_capacity_veh_per_day": 10000000.0,
+     "car_speed_mph": 25.0,
+     "tolerance_pct": 12,
+     "wage_value_per_work_trip": 150.0,
+     "transit_vehicle_load": 25.0,
+     "mean_work_trip_mi_target": 11.0,
+     "solver": "bisection",
+     "transit_share_pct_target": 13.1,
+     "car_occupancy": 1.12
+    },
+    "calibration": {
+     "beta": 0.14831905050668864,
+     "calib": 1.0026367187499998
+    },
+    "wage_distortion_pct": 5.8,
+    "outputs": [
+     {
+      "label": "2019 baseline",
+      "transit_pct": 13.1,
+      "avg_trip_mi": 11.01,
+      "people_flow": 8196722.0,
+      "cars": 6357250.0,
+      "eff_mph": 24.4,
+      "value_usd": 614754150.0,
+      "bottlenecks": 4
+     },
+     {
+      "label": "2045 control",
+      "transit_pct": 13.1,
+      "avg_trip_mi": 11.0,
+      "people_flow": 9475380.0,
+      "cars": 7348957.0,
+      "eff_mph": 24.0,
+      "value_usd": 710653500.0,
+      "bottlenecks": 4
+     },
+     {
+      "label": "2045 + TOD",
+      "transit_pct": 13.1,
+      "avg_trip_mi": 11.21,
+      "people_flow": 9559262.0,
+      "cars": 7414014.0,
+      "eff_mph": 23.9,
+      "value_usd": 716944650.0,
+      "bottlenecks": 4
+     }
+    ],
+    "changes": {
+     "any": false,
+     "note": "baseline"
+    }
+   }
+  ],
+  "seattle": [
+   {
+    "version": "19f09cc",
+    "date": "2026-06-25 18:42",
+    "settings": {
+     "corridor_capacity_veh_per_day": 80000.0,
+     "dist_method": "ipf",
+     "transit_speed_mph": 15.0,
+     "bpr_beta": 4.0,
+     "value_of_time_per_hr": 18.0,
+     "bpr_alpha": 0.15,
+     "road_capacity_veh_per_day": 5000000.0,
+     "car_speed_mph": 25.0,
+     "tolerance_pct": 12,
+     "wage_value_per_work_trip": 150.0,
+     "transit_vehicle_load": 25.0,
+     "mean_work_trip_mi_target": 11.0,
+     "solver": "bisection",
+     "transit_share_pct_target": 10.0,
+     "car_occupancy": 1.12
+    },
+    "calibration": {
+     "beta": 0.12691925316583363,
+     "calib": 1.0026367187499998
+    },
+    "wage_distortion_pct": 4.1,
+    "outputs": [
+     {
+      "label": "2019 baseline",
+      "transit_pct": 10.0,
+      "avg_trip_mi": 11.01,
+      "people_flow": 3686004.0,
+      "cars": 2961100.0,
+      "eff_mph": 24.5,
+      "value_usd": 276450300.0,
+      "bottlenecks": 2
+     },
+     {
+      "label": "2045 control",
+      "transit_pct": 10.0,
+      "avg_trip_mi": 11.0,
+      "people_flow": 4261032.0,
+      "cars": 3423041.0,
+      "eff_mph": 24.2,
+      "value_usd": 319577400.0,
+      "bottlenecks": 2
+     },
+     {
+      "label": "2045 + TOD",
+      "transit_pct": 10.0,
+      "avg_trip_mi": 11.12,
+      "people_flow": 4344246.0,
+      "cars": 3489889.0,
+      "eff_mph": 24.1,
+      "value_usd": 325818450.0,
+      "bottlenecks": 2
+     }
+    ],
+    "changes": {
+     "any": false,
+     "note": "baseline"
+    }
+   }
+  ],
+  "toronto": [
+   {
+    "version": "19f09cc",
+    "date": "2026-06-25 18:42",
+    "settings": {
+     "corridor_capacity_veh_per_day": 80000.0,
+     "dist_method": "ipf",
+     "transit_speed_mph": 15.0,
+     "bpr_beta": 4.0,
+     "value_of_time_per_hr": 18.0,
+     "bpr_alpha": 0.15,
+     "road_capacity_veh_per_day": 3000000.0,
+     "car_speed_mph": 25.0,
+     "tolerance_pct": 15,
+     "wage_value_per_work_trip": 150.0,
+     "transit_vehicle_load": 25.0,
+     "mean_work_trip_mi_target": 7.0,
+     "solver": "bisection",
+     "transit_share_pct_target": 28.0,
+     "car_occupancy": 1.12
+    },
+    "calibration": {
+     "beta": 0.12284831081982703,
+     "calib": 0.9987792968749999
+    },
+    "wage_distortion_pct": 13.1,
+    "outputs": [
+     {
+      "label": "Baseline (OSM current)",
+      "transit_pct": 28.0,
+      "avg_trip_mi": 7.01,
+      "people_flow": 2794376.0,
+      "cars": 1797237.0,
+      "eff_mph": 24.5,
+      "value_usd": 209578200.0,
+      "bottlenecks": 1
+     },
+     {
+      "label": "Horizon growth",
+      "transit_pct": 28.0,
+      "avg_trip_mi": 7.0,
+      "people_flow": 3213512.0,
+      "cars": 2066811.0,
+      "eff_mph": 24.2,
+      "value_usd": 241013400.0,
+      "bottlenecks": 1
+     },
+     {
+      "label": "Horizon + downtown TOD",
+      "transit_pct": 28.0,
+      "avg_trip_mi": 6.97,
+      "people_flow": 3247544.0,
+      "cars": 2088698.0,
+      "eff_mph": 24.1,
+      "value_usd": 243565800.0,
+      "bottlenecks": 3
+     }
+    ],
+    "changes": {
+     "any": false,
+     "note": "baseline"
+    }
+   }
+  ],
+  "glasgow": [
+   {
+    "version": "19f09cc",
+    "date": "2026-06-25 18:42",
+    "settings": {
+     "corridor_capacity_veh_per_day": 80000.0,
+     "dist_method": "ipf",
+     "transit_speed_mph": 15.0,
+     "bpr_beta": 4.0,
+     "value_of_time_per_hr": 18.0,
+     "bpr_alpha": 0.15,
+     "road_capacity_veh_per_day": 1000000.0,
+     "car_speed_mph": 25.0,
+     "tolerance_pct": 15,
+     "wage_value_per_work_trip": 150.0,
+     "transit_vehicle_load": 25.0,
+     "mean_work_trip_mi_target": 8.0,
+     "solver": "bisection",
+     "transit_share_pct_target": 14.0,
+     "car_occupancy": 1.12
+    },
+    "calibration": {
+     "beta": 0.005000000461004675,
+     "calib": 1.0026367187499998
+    },
+    "wage_distortion_pct": 0.0,
+    "outputs": [
+     {
+      "label": "Baseline (OSM current)",
+      "transit_pct": 14.0,
+      "avg_trip_mi": 3.85,
+      "people_flow": 622832.0,
+      "cars": 478041.0,
+      "eff_mph": 24.8,
+      "value_usd": 46712400.0,
+      "bottlenecks": 0
+     },
+     {
+      "label": "Horizon growth",
+      "transit_pct": 14.0,
+      "avg_trip_mi": 3.85,
+      "people_flow": 697560.0,
+      "cars": 535396.0,
+      "eff_mph": 24.7,
+      "value_usd": 52317000.0,
+      "bottlenecks": 0
+     },
+     {
+      "label": "Horizon + city-centre TOD",
+      "transit_pct": 14.0,
+      "avg_trip_mi": 3.75,
+      "people_flow": 707404.0,
+      "cars": 542952.0,
+      "eff_mph": 24.7,
+      "value_usd": 53055300.0,
+      "bottlenecks": 0
+     }
+    ],
+    "changes": {
+     "any": false,
+     "note": "baseline"
+    }
+   }
+  ],
+  "melbourne": [
+   {
+    "version": "19f09cc",
+    "date": "2026-06-25 18:42",
+    "settings": {
+     "corridor_capacity_veh_per_day": 80000.0,
+     "dist_method": "ipf",
+     "transit_speed_mph": 15.0,
+     "bpr_beta": 4.0,
+     "value_of_time_per_hr": 18.0,
+     "bpr_alpha": 0.15,
+     "road_capacity_veh_per_day": 6000000.0,
+     "car_speed_mph": 25.0,
+     "tolerance_pct": 15,
+     "wage_value_per_work_trip": 150.0,
+     "transit_vehicle_load": 25.0,
+     "mean_work_trip_mi_target": 9.5,
+     "solver": "bisection",
+     "transit_share_pct_target": 15.0,
+     "car_occupancy": 1.12
+    },
+    "calibration": {
+     "beta": 0.09677009052131325,
+     "calib": 1.0026367187499998
+    },
+    "wage_distortion_pct": 0.0,
+    "outputs": [
+     {
+      "label": "Baseline (OSM current)",
+      "transit_pct": 15.0,
+      "avg_trip_mi": 9.51,
+      "people_flow": 4920058.0,
+      "cars": 3732236.0,
+      "eff_mph": 24.5,
+      "value_usd": 369004350.0,
+      "bottlenecks": 3
+     },
+     {
+      "label": "Horizon growth",
+      "transit_pct": 15.0,
+      "avg_trip_mi": 9.5,
+      "people_flow": 5805572.0,
+      "cars": 4403964.0,
+      "eff_mph": 24.0,
+      "value_usd": 435417900.0,
+      "bottlenecks": 4
+     },
+     {
+      "label": "Horizon + CBD/inner TOD",
+      "transit_pct": 15.0,
+      "avg_trip_mi": 9.3,
+      "people_flow": 5982228.0,
+      "cars": 4537971.0,
+      "eff_mph": 23.8,
+      "value_usd": 448667100.0,
+      "bottlenecks": 4
+     }
+    ],
+    "changes": {
+     "any": false,
+     "note": "baseline"
+    }
+   }
+  ]
+ }
+}
